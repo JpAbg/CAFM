@@ -1,0 +1,273 @@
+{
+ "actions": [],
+ "autoname": "naming_series:",
+ "creation": "2026-08-26 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "source_section",
+  "source_type",
+  "work_order",
+  "inspection_schedule",
+  "occurrence_date",
+  "occurrence_key",
+  "inspection_template",
+  "required_for_closure",
+  "details_section",
+  "company",
+  "facility_location",
+  "asset",
+  "column_break_details",
+  "category",
+  "inspector",
+  "planned_date",
+  "status_section",
+  "status",
+  "overall_result",
+  "started_on",
+  "completed_on",
+  "results_section",
+  "results",
+  "notes",
+  "override_section",
+  "override_failure",
+  "override_reason",
+  "override_by",
+  "override_on"
+ ],
+ "fields": [
+  {
+   "default": "FINSP-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "FINSP-.YYYY.-.#####",
+   "reqd": 1
+  },
+  {
+   "fieldname": "source_section",
+   "fieldtype": "Section Break",
+   "label": "Inspection Source"
+  },
+  {
+   "default": "Manual",
+   "fieldname": "source_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Source Type",
+   "options": "Manual\nWork Order\nScheduled Inspection",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.source_type=='Work Order'",
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Work Order",
+   "mandatory_depends_on": "eval:doc.source_type=='Work Order'",
+   "options": "Facility Work Order"
+  },
+  {
+   "depends_on": "eval:doc.source_type=='Scheduled Inspection'",
+   "fieldname": "inspection_schedule",
+   "fieldtype": "Link",
+   "label": "Inspection Schedule",
+   "mandatory_depends_on": "eval:doc.source_type=='Scheduled Inspection'",
+   "options": "Facility Inspection Schedule"
+  },
+  {
+   "depends_on": "eval:doc.source_type=='Scheduled Inspection'",
+   "fieldname": "occurrence_date",
+   "fieldtype": "Date",
+   "label": "Occurrence Date"
+  },
+  {
+   "fieldname": "occurrence_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Occurrence Key",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "inspection_template",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Inspection Template",
+   "options": "Facility Inspection Template",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "required_for_closure",
+   "fieldtype": "Check",
+   "label": "Required for Work Order Closure",
+   "description": "Set automatically from the linked Work Order.",
+   "read_only": 1
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Inspection Details"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "facility_location",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Facility Location",
+   "options": "Facility Location",
+   "reqd": 1
+  },
+  {
+   "fieldname": "asset",
+   "fieldtype": "Link",
+   "label": "Asset",
+   "options": "Asset"
+  },
+  {
+   "fieldname": "column_break_details",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Link",
+   "label": "Category",
+   "options": "Issue Type"
+  },
+  {
+   "fieldname": "inspector",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Inspector",
+   "options": "Employee",
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "planned_date",
+   "fieldtype": "Date",
+   "label": "Planned Date"
+  },
+  {
+   "fieldname": "status_section",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nAssigned\nIn Progress\nCompleted\nApproved\nRejected\nCancelled",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "overall_result",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Overall Result",
+   "options": "Pending\nPass\nFail",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "started_on",
+   "fieldtype": "Datetime",
+   "label": "Started On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completed_on",
+   "fieldtype": "Datetime",
+   "label": "Completed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "results_section",
+   "fieldtype": "Section Break",
+   "label": "Inspection Results"
+  },
+  {
+   "fieldname": "results",
+   "fieldtype": "Table",
+   "label": "Results",
+   "options": "Facility Inspection Result",
+   "reqd": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text Editor",
+   "label": "Inspector Notes"
+  },
+  {
+   "depends_on": "eval:doc.overall_result=='Fail'",
+   "fieldname": "override_section",
+   "fieldtype": "Section Break",
+   "label": "Failure Override"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.overall_result=='Fail'",
+   "fieldname": "override_failure",
+   "fieldtype": "Check",
+   "label": "Override Failed Inspection"
+  },
+  {
+   "depends_on": "eval:doc.override_failure",
+   "fieldname": "override_reason",
+   "fieldtype": "Small Text",
+   "label": "Override Reason",
+   "mandatory_depends_on": "eval:doc.override_failure"
+  },
+  {
+   "fieldname": "override_by",
+   "fieldtype": "Link",
+   "label": "Override By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "override_on",
+   "fieldtype": "Datetime",
+   "label": "Override On",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-26 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Facility Inspection",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "inspection_template",
+ "track_changes": 1
+}

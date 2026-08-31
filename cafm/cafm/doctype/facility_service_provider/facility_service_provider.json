@@ -1,0 +1,209 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:provider_name",
+ "creation": "2026-08-24 19:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "provider_section",
+  "provider_name",
+  "supplier",
+  "company",
+  "column_break_provider",
+  "status",
+  "availability",
+  "primary_specialization",
+  "services_section",
+  "service_categories",
+  "emergency_service",
+  "response_time_hours",
+  "contact_section",
+  "primary_contact_name",
+  "service_phone",
+  "service_email",
+  "vendor_user",
+  "column_break_contact",
+  "contract_start_date",
+  "contract_end_date",
+  "insurance_expiry_date",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "provider_section",
+   "fieldtype": "Section Break",
+   "label": "Service Provider"
+  },
+  {
+   "fieldname": "provider_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Provider Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "ERPNext Supplier",
+   "options": "Supplier",
+   "reqd": 1,
+   "unique": 1,
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "column_break_provider",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nSuspended\nInactive",
+   "reqd": 1
+  },
+  {
+   "default": "Available",
+   "fieldname": "availability",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Availability",
+   "options": "Available\nAssigned\nBusy\nInactive",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "primary_specialization",
+   "fieldtype": "Select",
+   "label": "Primary Specialization",
+   "options": "\nHVAC\nElectrical\nPlumbing\nFire Safety\nCleaning\nGeneral Maintenance",
+   "reqd": 1
+  },
+  {
+   "fieldname": "services_section",
+   "fieldtype": "Section Break",
+   "label": "Services"
+  },
+  {
+   "fieldname": "service_categories",
+   "fieldtype": "Table",
+   "label": "Service Categories",
+   "options": "Facility Service Category",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "emergency_service",
+   "fieldtype": "Check",
+   "label": "Emergency Service Available"
+  },
+  {
+   "default": "24",
+   "fieldname": "response_time_hours",
+   "fieldtype": "Int",
+   "label": "Standard Response Time (Hours)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "contact_section",
+   "fieldtype": "Section Break",
+   "label": "Service Contact"
+  },
+  {
+   "fieldname": "primary_contact_name",
+   "fieldtype": "Data",
+   "label": "Primary Contact Name"
+  },
+  {
+   "fieldname": "service_phone",
+   "fieldtype": "Phone",
+   "label": "Service Phone"
+  },
+  {
+   "fieldname": "service_email",
+   "fieldtype": "Data",
+   "label": "Service Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "vendor_user",
+   "fieldtype": "Link",
+   "label": "Vendor User",
+   "options": "User",
+   "unique": 1,
+   "description": "System User allowed to access this provider's assigned external Work Orders."
+  },
+  {
+   "fieldname": "column_break_contact",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contract_start_date",
+   "fieldtype": "Date",
+   "label": "Contract Start Date"
+  },
+  {
+   "fieldname": "contract_end_date",
+   "fieldtype": "Date",
+   "label": "Contract End Date"
+  },
+  {
+   "fieldname": "insurance_expiry_date",
+   "fieldtype": "Date",
+   "label": "Insurance Expiry Date"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text Editor",
+   "label": "Notes"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "link_doctype": "Facility Work Order",
+   "link_fieldname": "vendor"
+  }
+ ],
+ "modified": "2026-08-24 19:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Facility Service Provider",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "provider_name",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "provider_name",
+ "track_changes": 1
+}

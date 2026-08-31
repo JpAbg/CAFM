@@ -1,0 +1,187 @@
+{
+ "actions": [],
+ "allow_import": 0,
+ "autoname": "AMH-.YYYY.-.#####",
+ "creation": "2026-08-26 18:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "asset",
+  "work_order",
+  "subject",
+  "company",
+  "facility_location",
+  "maintenance_request",
+  "work_order_type",
+  "category",
+  "priority",
+  "actual_start",
+  "actual_end",
+  "downtime_hours",
+  "labor_hours",
+  "material_cost",
+  "resolution_summary",
+  "closed_by",
+  "closed_on"
+ ],
+ "fields": [
+  {
+   "fieldname": "asset",
+   "fieldtype": "Link",
+   "label": "Asset",
+   "options": "Asset",
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Work Order",
+   "options": "Facility Work Order",
+   "reqd": 1,
+   "unique": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "label": "Subject",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "facility_location",
+   "fieldtype": "Link",
+   "label": "Facility Location",
+   "options": "Facility Location",
+   "read_only": 1
+  },
+  {
+   "fieldname": "maintenance_request",
+   "fieldtype": "Link",
+   "label": "Maintenance Request",
+   "options": "Issue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "work_order_type",
+   "fieldtype": "Select",
+   "label": "Work Order Type",
+   "options": "Corrective\nPreventive",
+   "read_only": 1
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Link",
+   "label": "Category",
+   "options": "Issue Type",
+   "read_only": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Link",
+   "label": "Priority",
+   "options": "Issue Priority",
+   "read_only": 1
+  },
+  {
+   "fieldname": "actual_start",
+   "fieldtype": "Datetime",
+   "label": "Actual Start",
+   "read_only": 1
+  },
+  {
+   "fieldname": "actual_end",
+   "fieldtype": "Datetime",
+   "label": "Actual End",
+   "read_only": 1
+  },
+  {
+   "fieldname": "downtime_hours",
+   "fieldtype": "Float",
+   "label": "Downtime Hours",
+   "read_only": 1,
+   "non_negative": 1
+  },
+  {
+   "fieldname": "labor_hours",
+   "fieldtype": "Float",
+   "label": "Labor Hours",
+   "read_only": 1,
+   "non_negative": 1
+  },
+  {
+   "fieldname": "material_cost",
+   "fieldtype": "Currency",
+   "label": "Material Cost",
+   "read_only": 1,
+   "non_negative": 1
+  },
+  {
+   "fieldname": "resolution_summary",
+   "fieldtype": "Small Text",
+   "label": "Resolution Summary",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_by",
+   "fieldtype": "Link",
+   "label": "Closed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Datetime",
+   "label": "Closed On",
+   "read_only": 1,
+   "in_list_view": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-08-26 18:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Facility Asset Maintenance History",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Facility Manager",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  },
+  {
+   "role": "Facility Coordinator",
+   "read": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1
+  }
+ ],
+ "search_fields": "asset,work_order,subject",
+ "sort_field": "closed_on",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

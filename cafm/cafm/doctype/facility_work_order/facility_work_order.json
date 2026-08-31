@@ -1,0 +1,346 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-24 13:46:29.773127",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "naming_series",
+  "work_order_type",
+  "request_details_section",
+  "maintenance_request",
+  "preventive_maintenance_plan",
+  "scheduled_occurrence_date",
+  "preventive_occurrence_key",
+  "subject",
+  "company",
+  "column_break_request",
+  "facility_location",
+  "asset",
+  "category",
+  "priority",
+  "work_description",
+  "assignment_section",
+  "work_order_status",
+  "assignment_type",
+  "technician",
+  "vendor",
+  "schedule_section",
+  "planned_start",
+  "planned_end",
+  "column_break_actual",
+  "actual_start",
+  "actual_end",
+  "execution_section",
+  "checklist",
+  "labor_entries",
+  "materials",
+  "material_cost",
+  "inspection_section",
+  "inspection_required",
+  "inspection_template",
+  "resolution_section",
+  "technician_notes",
+  "resolution_summary",
+  "closed_by",
+  "closed_on"
+ ],
+ "fields": [
+  {
+   "default": "FWO-.YYYY.-.#####",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "FWO-.YYYY.-.#####",
+   "reqd": 1
+  },
+  {
+   "default": "Corrective",
+   "fieldname": "work_order_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Work Order Type",
+   "options": "Corrective\nPreventive",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.work_order_type=='Preventive'",
+   "fieldname": "preventive_maintenance_plan",
+   "fieldtype": "Link",
+   "label": "Preventive Maintenance Plan",
+   "mandatory_depends_on": "eval:doc.work_order_type=='Preventive'",
+   "options": "Preventive Maintenance Plan"
+  },
+  {
+   "depends_on": "eval:doc.work_order_type=='Preventive'",
+   "fieldname": "scheduled_occurrence_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Scheduled Occurrence Date",
+   "mandatory_depends_on": "eval:doc.work_order_type=='Preventive'"
+  },
+  {
+   "fieldname": "preventive_occurrence_key",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Preventive Occurrence Key",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "request_details_section",
+   "fieldtype": "Section Break",
+   "label": "Request Details"
+  },
+  {
+   "fieldname": "maintenance_request",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Maintenance Request",
+   "options": "Issue",
+   "reqd": 0,
+   "depends_on": "eval:doc.work_order_type=='Corrective'",
+   "mandatory_depends_on": "eval:doc.work_order_type=='Corrective'"
+  },
+  {
+   "fetch_from": "maintenance_request.subject",
+   "fetch_if_empty": 1,
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Subject",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "maintenance_request.company",
+   "fetch_if_empty": 1,
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "column_break_request",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "facility_location",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Facility Location",
+   "options": "Facility Location",
+   "reqd": 1
+  },
+  {
+   "fieldname": "asset",
+   "fieldtype": "Link",
+   "label": "Asset",
+   "options": "Asset"
+  },
+  {
+   "fieldname": "category",
+   "fieldtype": "Link",
+   "label": "Category",
+   "options": "Issue Type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Priority",
+   "options": "Issue Priority",
+   "reqd": 1
+  },
+  {
+   "fieldname": "work_description",
+   "fieldtype": "Text Editor",
+   "label": "Work Description",
+   "reqd": 1
+  },
+  {
+   "fieldname": "assignment_section",
+   "fieldtype": "Section Break",
+   "label": "Assignment"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "work_order_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Work Order Status",
+   "options": "Draft\nAssigned\nIn Progress\nPending\nResolved\nClosed\nCancelled",
+   "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "assignment_type",
+   "fieldtype": "Select",
+   "label": "Assignment Type",
+   "options": "\nInternal Technician\nExternal Vendor"
+  },
+  {
+   "depends_on": "eval:doc.assignment_type=='Internal Technician'",
+   "fieldname": "technician",
+   "fieldtype": "Link",
+   "label": "Technician",
+   "options": "Employee",
+   "ignore_user_permissions": 1
+  },
+  {
+   "depends_on": "eval:doc.assignment_type=='External Vendor'",
+   "fieldname": "vendor",
+   "fieldtype": "Link",
+   "label": "Service Provider",
+   "options": "Facility Service Provider"
+  },
+  {
+   "fieldname": "schedule_section",
+   "fieldtype": "Section Break",
+   "label": "Schedule"
+  },
+  {
+   "fieldname": "planned_start",
+   "fieldtype": "Datetime",
+   "label": "Planned Start"
+  },
+  {
+   "fieldname": "planned_end",
+   "fieldtype": "Datetime",
+   "label": "Planned End"
+  },
+  {
+   "fieldname": "column_break_actual",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "actual_start",
+   "fieldtype": "Datetime",
+   "label": "Actual Start"
+  },
+  {
+   "fieldname": "actual_end",
+   "fieldtype": "Datetime",
+   "label": "Actual End"
+  },
+  {
+   "fieldname": "execution_section",
+   "fieldtype": "Section Break",
+   "label": "Execution"
+  },
+  {
+   "fieldname": "checklist",
+   "fieldtype": "Table",
+   "label": "Checklist",
+   "options": "Facility Work Order Checklist Item"
+  },
+  {
+   "fieldname": "labor_entries",
+   "fieldtype": "Table",
+   "label": "Labor Entries",
+   "options": "Facility Work Order Labor"
+  },
+  {
+   "fieldname": "materials",
+   "fieldtype": "Table",
+   "label": "Materials",
+   "options": "Facility Work Order Material"
+  },
+  {
+   "fieldname": "resolution_section",
+   "fieldtype": "Section Break",
+   "label": "Resolution"
+  },
+  {
+   "fieldname": "technician_notes",
+   "fieldtype": "Text Editor",
+   "label": "Technician Notes"
+  },
+  {
+   "fieldname": "resolution_summary",
+   "fieldtype": "Text Editor",
+   "label": "Resolution Summary"
+  },
+  {
+   "fieldname": "closed_by",
+   "fieldtype": "Link",
+   "label": "Closed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_on",
+   "fieldtype": "Datetime",
+   "label": "Closed On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "inspection_section",
+   "fieldtype": "Section Break",
+   "label": "Inspection"
+  },
+  {
+   "default": "0",
+   "fieldname": "inspection_required",
+   "fieldtype": "Check",
+   "label": "Inspection Required Before Closure"
+  },
+  {
+   "depends_on": "eval:doc.inspection_required",
+   "fieldname": "inspection_template",
+   "fieldtype": "Link",
+   "label": "Inspection Template",
+   "mandatory_depends_on": "eval:doc.inspection_required",
+   "options": "Facility Inspection Template"
+  },
+  {
+   "default": "0",
+   "fieldname": "material_cost",
+   "fieldtype": "Currency",
+   "label": "Consumed Material Cost",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "link_doctype": "Facility Inspection",
+   "link_fieldname": "work_order"
+  },
+  {
+   "link_doctype": "Stock Entry",
+   "link_fieldname": "custom_facility_work_order"
+  }
+ ],
+ "modified": "2026-08-24 18:15:00.000000",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Facility Work Order",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "subject",
+ "track_changes": 1
+}

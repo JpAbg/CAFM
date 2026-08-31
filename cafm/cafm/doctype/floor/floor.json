@@ -1,0 +1,143 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "format:{building}-{floor_level}",
+ "creation": "2026-08-24 10:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "floor_info_section",
+  "building",
+  "floor_name",
+  "floor_level",
+  "floor_type",
+  "status",
+  "column_break_floor",
+  "floor_area",
+  "net_rentable_area",
+  "max_occupancy",
+  "extras_section",
+  "kitchenette",
+  "access_control_guarding",
+  "cctv"
+ ],
+ "fields": [
+  {
+   "fieldname": "floor_info_section",
+   "fieldtype": "Section Break",
+   "label": "Floor Information"
+  },
+  {
+   "fieldname": "building",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Building",
+   "options": "Building",
+   "reqd": 1
+  },
+  {
+   "fieldname": "floor_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Floor Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "floor_level",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Floor Level",
+   "reqd": 1
+  },
+  {
+   "fieldname": "floor_type",
+   "fieldtype": "Select",
+   "label": "Floor Type",
+   "options": "Office\nWorkspace\nShowroom\nParking\nStorage\nLobby",
+   "reqd": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nUnder Renovation\nVacant\nRestricted Access",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_floor",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "floor_area",
+   "fieldtype": "Float",
+   "label": "Floor Area",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "net_rentable_area",
+   "fieldtype": "Float",
+   "label": "Net Rentable Area",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "max_occupancy",
+   "fieldtype": "Int",
+   "label": "Maximum Occupancy",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "extras_section",
+   "fieldtype": "Section Break",
+   "label": "Features"
+  },
+  {
+   "default": "0",
+   "fieldname": "kitchenette",
+   "fieldtype": "Check",
+   "label": "Kitchenette"
+  },
+  {
+   "default": "0",
+   "fieldname": "access_control_guarding",
+   "fieldtype": "Check",
+   "label": "Access Control Guarding"
+  },
+  {
+   "default": "0",
+   "fieldname": "cctv",
+   "fieldtype": "Check",
+   "label": "CCTV"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-24 15:47:24.771214",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Floor",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

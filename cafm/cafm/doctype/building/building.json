@@ -1,0 +1,198 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "field:building_id",
+ "creation": "2026-08-24 10:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "general_info_section",
+  "site",
+  "building_name",
+  "building_id",
+  "total_floors",
+  "status",
+  "building_type",
+  "column_break_building",
+  "gross_area",
+  "building_manager",
+  "extras_section",
+  "storage",
+  "winch",
+  "loading_bay",
+  "cold_storage",
+  "hvac",
+  "column_break_extras",
+  "backup_generator",
+  "access_control",
+  "raised_flooring",
+  "public_parking",
+  "cctv"
+ ],
+ "fields": [
+  {
+   "fieldname": "general_info_section",
+   "fieldtype": "Section Break",
+   "label": "General Information"
+  },
+  {
+   "fieldname": "site",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Site",
+   "options": "Site",
+   "reqd": 1
+  },
+  {
+   "fieldname": "building_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Building Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "building_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Building ID",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "total_floors",
+   "fieldtype": "Int",
+   "label": "Total Floors",
+   "non_negative": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Commissioning\nReady For Occupancy\nActive\nUnder Renovation\nInactive\nDemolished",
+   "reqd": 1
+  },
+  {
+   "fieldname": "building_type",
+   "fieldtype": "Select",
+   "label": "Building Type",
+   "options": "Store\nRetail\nOffice\nWarehouse\nData Center",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_building",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gross_area",
+   "fieldtype": "Float",
+   "label": "Gross Area",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "building_manager",
+   "fieldtype": "Link",
+   "label": "Building Manager",
+   "options": "User"
+  },
+  {
+   "fieldname": "extras_section",
+   "fieldtype": "Section Break",
+   "label": "Features"
+  },
+  {
+   "default": "0",
+   "fieldname": "storage",
+   "fieldtype": "Check",
+   "label": "Storage"
+  },
+  {
+   "default": "0",
+   "fieldname": "winch",
+   "fieldtype": "Check",
+   "label": "Winch"
+  },
+  {
+   "default": "0",
+   "fieldname": "loading_bay",
+   "fieldtype": "Check",
+   "label": "Loading Bay"
+  },
+  {
+   "default": "0",
+   "fieldname": "cold_storage",
+   "fieldtype": "Check",
+   "label": "Cold Storage"
+  },
+  {
+   "default": "0",
+   "fieldname": "hvac",
+   "fieldtype": "Check",
+   "label": "HVAC"
+  },
+  {
+   "fieldname": "column_break_extras",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "backup_generator",
+   "fieldtype": "Check",
+   "label": "Backup Generator"
+  },
+  {
+   "default": "0",
+   "fieldname": "access_control",
+   "fieldtype": "Check",
+   "label": "Access Control"
+  },
+  {
+   "default": "0",
+   "fieldname": "raised_flooring",
+   "fieldtype": "Check",
+   "label": "Raised Flooring"
+  },
+  {
+   "default": "0",
+   "fieldname": "public_parking",
+   "fieldtype": "Check",
+   "label": "Public Parking"
+  },
+  {
+   "default": "0",
+   "fieldname": "cctv",
+   "fieldtype": "Check",
+   "label": "CCTV"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-24 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Building",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

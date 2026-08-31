@@ -1,9 +1,11 @@
 app_name = "cafm"
 app_title = "CAFM"
 app_publisher = "Jean Paul Abou Gharib"
-app_description = "a complete Computer-Aided Facility Management (CAFM"
+app_description = "A complete Computer-Aided Facility Management (CAFM) web-app"
 app_email = "abougharib.jp@gmail.com"
 app_license = "mit"
+
+required_apps = ["erpnext", "hrms"]
 
 # Apps
 # ------------------
@@ -25,8 +27,8 @@ app_license = "mit"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/cafm/css/cafm.css"
-# app_include_js = "/assets/cafm/js/cafm.js"
+app_include_css = "/assets/cafm/css/cafm.css"
+app_include_js = "/assets/cafm/js/custom-dashboard-chart.js?v=20"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/cafm/css/cafm.css"
@@ -44,6 +46,11 @@ app_license = "mit"
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+    "Asset": "public/js/asset.js",
+    "Asset Maintenance Team": "public/js/asset_maintenance_team.js",
+    "Issue": "public/js/issue.js",
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -246,4 +253,65 @@ app_license = "mit"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
+
+
+website_route_rules = [{'from_route': '/dashboard/<path:app_path>', 'to_route': 'dashboard'},]
+
+doc_events = {
+    "Issue": {
+        "validate": "cafm.events.issue.validate_cafm_issue",
+    },
+    "Asset": {
+        "validate": "cafm.events.asset.validate_cafm_asset",
+    },
+    "Asset Maintenance Team": {
+        "validate": "cafm.events.asset_maintenance_team.validate_member_roles",
+    },
+    "Employee": {
+        "validate": "cafm.events.employee.validate_cafm_employee",
+        "on_update": "cafm.events.employee.update_cafm_employee_availability",
+    },
+    "User": {
+        "validate": "cafm.events.user.enforce_cafm_demo_user_roles",
+    },
+    "Stock Entry": {
+        "validate": "cafm.events.stock_entry.validate_facility_material_issue",
+        "before_cancel": "cafm.events.stock_entry.prevent_closed_work_order_material_cancellation",
+        "on_submit": "cafm.events.stock_entry.sync_facility_material_issue",
+        "on_cancel": "cafm.events.stock_entry.clear_facility_material_issue",
+    },
+    "Leave Application": {
+        "on_submit": "cafm.events.employee.update_leave_employee_availability",
+        "on_cancel": "cafm.events.employee.update_leave_employee_availability",
+        "on_update_after_submit": "cafm.events.employee.update_leave_employee_availability",
+    },
+}
+
+after_install = "cafm.setup.install.after_install"
+after_migrate = "cafm.setup.install.after_migrate"
+
+permission_query_conditions = {
+    "Issue": "cafm.permissions.issue_query",
+    "Facility Work Order": "cafm.permissions.work_order_query",
+    "Facility Inspection": "cafm.permissions.inspection_query",
+    "Facility Service Provider": "cafm.permissions.service_provider_query",
+}
+
+has_permission = {
+    "Issue": "cafm.permissions.has_issue_permission",
+    "Facility Work Order": "cafm.permissions.has_work_order_permission",
+    "Facility Inspection": "cafm.permissions.has_inspection_permission",
+    "Facility Service Provider": (
+        "cafm.permissions.has_service_provider_permission"
+    ),
+}
+
+scheduler_events = {
+    "daily": [
+        "cafm.tasks.daily",
+    ],
+    "hourly": [
+        "cafm.tasks.hourly",
+    ],
+}
 

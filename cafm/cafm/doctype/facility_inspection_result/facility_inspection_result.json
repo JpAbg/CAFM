@@ -1,0 +1,77 @@
+{
+ "actions": [],
+ "creation": "2026-08-26 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "inspection_point",
+  "instructions",
+  "is_required",
+  "requires_evidence",
+  "result",
+  "comments",
+  "evidence"
+ ],
+ "fields": [
+  {
+   "fieldname": "inspection_point",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Inspection Point",
+   "description": "Copied from the selected inspection template.",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "instructions",
+   "fieldtype": "Small Text",
+   "label": "Instructions",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "is_required",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Required",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "requires_evidence",
+   "fieldtype": "Check",
+   "label": "Requires Evidence",
+   "read_only": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "result",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Result",
+   "options": "Pending\nPass\nFail\nN/A",
+   "reqd": 1
+  },
+  {
+   "fieldname": "comments",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Comments"
+  },
+  {
+   "fieldname": "evidence",
+   "fieldtype": "Attach",
+   "label": "Evidence"
+  }
+ ],
+ "istable": 1,
+ "modified": "2026-08-26 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Facility Inspection Result",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "idx",
+ "sort_order": "ASC"
+}
