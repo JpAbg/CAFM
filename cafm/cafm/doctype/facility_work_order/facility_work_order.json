@@ -21,6 +21,13 @@
   "category",
   "priority",
   "work_description",
+  "warranty_claim_section",
+  "asset_warranty_status",
+  "warranty_provider",
+  "warranty_expiry_date",
+  "warranty_claim",
+  "warranty_claim_reference",
+  "warranty_claim_notes",
   "assignment_section",
   "work_order_status",
   "assignment_type",
@@ -303,6 +310,49 @@
    "fieldtype": "Currency",
    "label": "Consumed Material Cost",
    "read_only": 1
+  },
+  {
+   "fieldname": "warranty_claim_section",
+   "fieldtype": "Section Break",
+   "label": "Warranty Claim",
+   "depends_on": "eval:doc.asset"
+  },
+  {
+   "fieldname": "asset_warranty_status",
+   "fieldtype": "Data",
+   "label": "Asset Warranty Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "warranty_provider",
+   "fieldtype": "Link",
+   "label": "Warranty Provider",
+   "read_only": 1,
+   "options": "Facility Service Provider"
+  },
+  {
+   "fieldname": "warranty_expiry_date",
+   "fieldtype": "Date",
+   "label": "Warranty Expiry Date",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "warranty_claim",
+   "fieldtype": "Check",
+   "label": "Warranty Claim"
+  },
+  {
+   "depends_on": "eval:doc.warranty_claim",
+   "fieldname": "warranty_claim_reference",
+   "fieldtype": "Data",
+   "label": "Warranty Claim Reference"
+  },
+  {
+   "depends_on": "eval:doc.warranty_claim",
+   "fieldname": "warranty_claim_notes",
+   "fieldtype": "Small Text",
+   "label": "Warranty Claim Notes"
   }
  ],
  "grid_page_length": 50,

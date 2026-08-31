@@ -2,6 +2,7 @@ frappe.ui.form.on("Asset", {
     refresh(frm) {
         show_open_maintenance_work(frm);
         show_asset_maintenance_history(frm);
+        show_warranty_status(frm);
     },
 
     custom_operational_status(frm) {
@@ -137,4 +138,37 @@ function render_maintenance_history(history) {
         + "<th>" + __("Downtime Hours") + "</th>"
         + "<th>" + __("Material Cost") + "</th>"
         + "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+}
+
+
+
+function show_warranty_status(frm) {
+    const status = frm.doc.custom_warranty_status;
+    if (!status || status === "Not Covered") return;
+
+    const colors = {
+        Active: "green",
+        "Expiring Soon": "orange",
+        Expired: "red",
+        Pending: "blue",
+    };
+    frm.dashboard.add_indicator(
+        __("Warranty: {0}", [status]),
+        colors[status] || "gray"
+    );
+
+    if (
+        ["Active", "Expiring Soon"].includes(status)
+        && frm.doc.custom_warranty_expiry_date
+    ) {
+        frm.set_intro(
+            __(
+                "This asset is under warranty until {0}.",
+                [frappe.datetime.str_to_user(
+                    frm.doc.custom_warranty_expiry_date
+                )]
+            ),
+            status === "Expiring Soon" ? "orange" : "blue"
+        );
+    }
 }

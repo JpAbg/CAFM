@@ -62,6 +62,7 @@ def setup_cafm():
     ensure_overdue_escalation_rules()
     ensure_general_inspection_category()
     ensure_custom_fields()
+    migrate_legacy_warranty_provider_links()
     ensure_asset_location_customization()
     ensure_asset_maintenance_team_customization()
     migrate_legacy_asset_maintenance_team_members()
@@ -260,6 +261,67 @@ def ensure_custom_fields():
                     "insert_after": "custom_criticality",
                 },
                 {
+                    "fieldname": "custom_warranty_section",
+                    "fieldtype": "Section Break",
+                    "label": "Warranty",
+                    "insert_after": "custom_operational_status",
+                },
+                {
+                    "fieldname": "custom_warranty_provider",
+                    "fieldtype": "Data",
+                    "label": "Legacy Warranty Provider",
+                    "hidden": 1,
+                    "insert_after": "custom_warranty_section",
+                },
+                {
+                    "fieldname": "custom_warranty_service_provider",
+                    "fieldtype": "Link",
+                    "label": "Warranty Provider",
+                    "options": "Facility Service Provider",
+                    "insert_after": "custom_warranty_provider",
+                },
+                {
+                    "fieldname": "custom_warranty_start_date",
+                    "fieldtype": "Date",
+                    "label": "Warranty Start Date",
+                    "insert_after": "custom_warranty_provider",
+                },
+                {
+                    "fieldname": "custom_warranty_expiry_date",
+                    "fieldtype": "Date",
+                    "label": "Warranty Expiry Date",
+                    "insert_after": "custom_warranty_start_date",
+                },
+                {
+                    "fieldname": "custom_warranty_status",
+                    "fieldtype": "Select",
+                    "label": "Warranty Status",
+                    "options": (
+                        "Not Covered\nPending\nActive\n"
+                        "Expiring Soon\nExpired"
+                    ),
+                    "insert_after": "custom_warranty_expiry_date",
+                    "read_only": 1,
+                },
+                {
+                    "fieldname": "custom_warranty_reference",
+                    "fieldtype": "Data",
+                    "label": "Warranty Reference",
+                    "insert_after": "custom_warranty_status",
+                },
+                {
+                    "fieldname": "custom_warranty_coverage",
+                    "fieldtype": "Small Text",
+                    "label": "Warranty Coverage",
+                    "insert_after": "custom_warranty_reference",
+                },
+                {
+                    "fieldname": "custom_warranty_document",
+                    "fieldtype": "Attach",
+                    "label": "Warranty Document",
+                    "insert_after": "custom_warranty_coverage",
+                },
+                {
                     "fieldname": "custom_open_maintenance_section",
                     "fieldtype": "Section Break",
                     "label": "Open Maintenance Work",
@@ -384,6 +446,29 @@ def ensure_custom_fields():
         },
         update=True,
     )
+
+
+
+def migrate_legacy_warranty_provider_links():
+    legacy_assets = frappe.get_all(
+        "Asset",
+        filters={
+            "custom_warranty_provider": ["is", "set"],
+            "custom_warranty_service_provider": ["is", "not set"],
+        },
+        fields=["name", "custom_warranty_provider"],
+    )
+    for asset in legacy_assets:
+        if frappe.db.exists(
+            "Facility Service Provider", asset.custom_warranty_provider
+        ):
+            frappe.db.set_value(
+                "Asset",
+                asset.name,
+                "custom_warranty_service_provider",
+                asset.custom_warranty_provider,
+                update_modified=False,
+            )
 
 
 def ensure_asset_location_customization():
