@@ -2,6 +2,14 @@
 
 Computer-Aided Facility Management application built on Frappe, ERPNext, and HRMS.
 
+## Requirements
+
+- **Frappe Framework:** version 15
+- **ERPNext:** version 15
+- **HRMS:** version 15
+- **Database:** MariaDB 10.11 is the tested configuration
+- A working Frappe Bench with Redis, Node.js, Yarn, and Bench installed
+
 ## Compatibility
 
 CAFM currently targets the version 15 release line. The clean-site installation was verified with:
