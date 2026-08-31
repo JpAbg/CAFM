@@ -17,7 +17,10 @@ def user_maintenance_role_query(
     doctype, txt, searchfield, start, page_len, filters
 ):
     """Offer only roles that belong to the selected maintenance-team user."""
-    user = (filters or {}).get("user")
+    filters = filters or {}
+    user = filters.get("user")
+    if not user and filters.get("employee"):
+        user = frappe.db.get_value("Employee", filters["employee"], "user_id")
     if not user:
         return []
 
