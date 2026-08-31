@@ -4,13 +4,19 @@
    "card": "Open Maintenance Requests"
   },
   {
-   "card": "Overdue Work Orders"
-  },
-  {
    "card": "Average Response Time"
   },
   {
    "card": "Average Resolution Time"
+  },
+  {
+   "card": "Overdue Work Orders"
+  },
+  {
+   "card": "Delayed Work Orders"
+  },
+  {
+   "card": "Escalated Work Orders"
   }
  ],
  "charts": [
@@ -46,7 +52,7 @@
  "idx": 0,
  "is_default": 0,
  "is_standard": 1,
- "modified": "2026-08-27 13:09:02.722833",
+ "modified": "2026-08-31 14:40:12.604557",
  "modified_by": "Administrator",
  "module": "CAFM",
  "name": "Facility Management Dashboard",

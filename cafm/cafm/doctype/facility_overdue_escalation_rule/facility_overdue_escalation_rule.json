@@ -1,0 +1,93 @@
+{
+ "actions": [],
+ "autoname": "field:rule_name",
+ "creation": "2026-08-31 15:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "rule_name",
+  "is_active",
+  "hours_overdue",
+  "priority",
+  "target_role",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "rule_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Rule Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "hours_overdue",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Escalate After (Hours)",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "priority",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Only for Priority",
+   "options": "Issue Priority"
+  },
+  {
+   "fieldname": "target_role",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Notify Role",
+   "options": "Role",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "modified": "2026-08-31 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Facility Overdue Escalation Rule",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "role": "Facility Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "Facility Coordinator",
+   "read": 1,
+   "report": 1,
+   "export": 1
+  },
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  }
+ ],
+ "sort_field": "hours_overdue",
+ "sort_order": "ASC"
+}

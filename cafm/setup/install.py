@@ -59,6 +59,7 @@ def after_migrate():
 def setup_cafm():
     ensure_roles()
     ensure_issue_priorities()
+    ensure_overdue_escalation_rules()
     ensure_general_inspection_category()
     ensure_custom_fields()
     ensure_asset_location_customization()
@@ -118,6 +119,41 @@ def ensure_issue_priorities():
                 }
             ).insert(ignore_permissions=True)
 
+
+
+
+def ensure_overdue_escalation_rules():
+    rules = (
+        {
+            "rule_name": "Critical work order escalation",
+            "hours_overdue": 1,
+            "priority": "Critical",
+            "target_role": "Facility Manager",
+            "description": "Escalate critical work orders one hour after due time.",
+        },
+        {
+            "rule_name": "Coordinator overdue escalation",
+            "hours_overdue": 4,
+            "target_role": "Facility Coordinator",
+            "description": "Escalate all work orders four hours after due time.",
+        },
+        {
+            "rule_name": "Manager overdue escalation",
+            "hours_overdue": 24,
+            "target_role": "Facility Manager",
+            "description": "Escalate all work orders one day after due time.",
+        },
+    )
+    for rule in rules:
+        if frappe.db.exists("Facility Overdue Escalation Rule", rule["rule_name"]):
+            continue
+        frappe.get_doc(
+            {
+                "doctype": "Facility Overdue Escalation Rule",
+                "is_active": 1,
+                **rule,
+            }
+        ).insert(ignore_permissions=True)
 
 
 def ensure_general_inspection_category():

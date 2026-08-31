@@ -5,7 +5,14 @@ from frappe import _
 from frappe.desk.doctype.notification_log.notification_log import (
     enqueue_create_notification,
 )
-from frappe.utils import add_days, format_datetime, getdate, now_datetime, nowdate
+from frappe.utils import (
+    add_days,
+    format_datetime,
+    get_datetime,
+    getdate,
+    now_datetime,
+    nowdate,
+)
 
 
 SUPERVISOR_ROLES = ("Facility Manager", "Facility Coordinator")
@@ -156,6 +163,97 @@ def notify_overdue_work_orders(reference_datetime=None):
         notified.append(work_order.name)
 
     return notified
+
+
+
+def get_overdue_escalation_rules():
+    return frappe.get_all(
+        "Facility Overdue Escalation Rule",
+        filters={"is_active": 1},
+        fields=[
+            "name",
+            "rule_name",
+            "hours_overdue",
+            "priority",
+            "target_role",
+        ],
+        order_by="hours_overdue asc, name asc",
+    )
+
+
+def notify_overdue_escalations(reference_datetime=None):
+    """Notify each configured escalation level exactly once per work order."""
+    reference_datetime = get_datetime(reference_datetime or now_datetime())
+    rules = get_overdue_escalation_rules()
+    if not rules:
+        return []
+
+    escalated = []
+    for work_order in get_overdue_work_orders(reference_datetime):
+        overdue_hours = (
+            reference_datetime - get_datetime(work_order.planned_end)
+        ).total_seconds() / 3600
+        for rule in rules:
+            if overdue_hours < rule.hours_overdue:
+                continue
+            if rule.priority and rule.priority != work_order.priority:
+                continue
+
+            recipients = get_enabled_users(
+                frappe.get_all(
+                    "Has Role",
+                    filters={
+                        "parenttype": "User",
+                        "role": rule.target_role,
+                    },
+                    pluck="parent",
+                )
+            )
+            if not recipients:
+                continue
+
+            subject = _("Overdue Escalation ({0}h) - {1}: {2}").format(
+                rule.hours_overdue,
+                rule.rule_name,
+                work_order.name,
+            )
+            description = _(
+                "<p><strong>{0}</strong> has been overdue for {1:.1f} hours.</p>"
+                "<p><strong>Rule:</strong> {2}<br>"
+                "<strong>Priority:</strong> {3}<br>"
+                "<strong>Due:</strong> {4}</p>"
+            ).format(
+                escape(work_order.subject or work_order.name),
+                overdue_hours,
+                escape(rule.rule_name),
+                escape(work_order.priority or _("Not Set")),
+                escape(format_due_datetime(work_order.planned_end)),
+            )
+            enqueue_create_notification(
+                recipients,
+                {
+                    "type": "Alert",
+                    "title": subject,
+                    "description": description,
+                    "document_type": "Facility Work Order",
+                    "document_name": work_order.name,
+                    "from_user": "Administrator",
+                    "app": "cafm",
+                },
+                dedupe_on=[
+                    "type",
+                    "document_type",
+                    "document_name",
+                    "title",
+                ],
+            )
+            escalated.append(
+                {
+                    "work_order": work_order.name,
+                    "rule": rule.name,
+                }
+            )
+    return escalated
 
 
 def send_upcoming_preventive_reminders(

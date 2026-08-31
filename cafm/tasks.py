@@ -1,6 +1,7 @@
 from cafm.assignment import refresh_all_assignment_availability
 from cafm.inspections import generate_scheduled_inspections
 from cafm.notifications import (
+    notify_overdue_escalations,
     notify_overdue_work_orders,
     send_daily_overdue_summary,
     send_upcoming_preventive_reminders,
@@ -25,4 +26,5 @@ def daily():
 def hourly():
     return {
         "overdue_work_orders": notify_overdue_work_orders(),
+        "overdue_escalations": notify_overdue_escalations(),
     }
