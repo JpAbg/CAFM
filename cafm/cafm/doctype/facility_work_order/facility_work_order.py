@@ -28,6 +28,7 @@ class FacilityWorkOrder(Document):
         self.infer_work_order_type()
         self.populate_from_maintenance_request()
         self.populate_from_preventive_plan()
+        self.populate_warranty_details()
         self.set_preventive_occurrence_key()
 
     def validate(self):
@@ -38,6 +39,7 @@ class FacilityWorkOrder(Document):
         self.validate_assignment()
         self.validate_dates()
         self.validate_asset_location()
+        self.validate_warranty_claim()
         self.validate_inspection_template()
         self.validate_labor_entries()
         self.validate_materials()
@@ -155,6 +157,32 @@ class FacilityWorkOrder(Document):
                         "comments": item.instructions,
                     },
                 )
+
+    def populate_warranty_details(self):
+        if not self.asset:
+            self.asset_warranty_status = None
+            self.warranty_provider = None
+            self.warranty_expiry_date = None
+            return
+
+        from cafm.warranty import get_warranty_status
+
+        warranty = frappe.db.get_value(
+            "Asset",
+            self.asset,
+            [
+                "custom_warranty_service_provider",
+                "custom_warranty_start_date",
+                "custom_warranty_expiry_date",
+            ],
+            as_dict=True,
+        )
+        self.asset_warranty_status = get_warranty_status(
+            warranty.custom_warranty_start_date,
+            warranty.custom_warranty_expiry_date,
+        )
+        self.warranty_provider = warranty.custom_warranty_provider
+        self.warranty_expiry_date = warranty.custom_warranty_expiry_date
 
     def set_preventive_occurrence_key(self):
         if (
@@ -319,6 +347,11 @@ class FacilityWorkOrder(Document):
             frappe.throw(
                 _("The Asset does not belong to the selected Facility Location.")
             )
+
+    def validate_warranty_claim(self):
+        from cafm.warranty import validate_warranty_claim
+
+        validate_warranty_claim(self)
 
     def validate_inspection_template(self):
         from cafm.inspection_templates import validate_inspection_template
