@@ -1,15 +1,23 @@
 frappe.ui.form.on("Asset Maintenance Team", {
     setup(frm) {
-        frm.set_query(
-            "maintenance_role",
+        for (const fieldname of [
             "maintenance_team_members",
-            (doc, cdt, cdn) => {
-                const row = locals[cdt][cdn];
-                return {
-                    query: "cafm.api.user_maintenance_role_query",
-                    filters: { user: row.team_member },
-                };
-            }
-        );
+            "custom_cafm_team_members",
+        ]) {
+            frm.set_query(
+                "maintenance_role",
+                fieldname,
+                (doc, cdt, cdn) => {
+                    const row = locals[cdt][cdn];
+                    return {
+                        query: "cafm.api.user_maintenance_role_query",
+                        filters: {
+                            employee: row.employee,
+                            user: row.user || row.team_member,
+                        },
+                    };
+                }
+            );
+        }
     },
 });

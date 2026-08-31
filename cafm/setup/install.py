@@ -62,6 +62,8 @@ def setup_cafm():
     ensure_general_inspection_category()
     ensure_custom_fields()
     ensure_asset_location_customization()
+    ensure_asset_maintenance_team_customization()
+    migrate_legacy_asset_maintenance_team_members()
     ensure_workflow_masters()
     ensure_permissions()
     ensure_workflows()
@@ -413,6 +415,96 @@ def ensure_asset_location_customization():
         "Check",
         is_system_generated=False,
     )
+
+
+
+def ensure_asset_maintenance_team_customization():
+    create_custom_fields(
+        {
+            "Asset Maintenance Team": [
+                {
+                    "fieldname": "custom_cafm_team_section",
+                    "fieldtype": "Section Break",
+                    "label": "CAFM Team Membership",
+                    "insert_after": "maintenance_team_members",
+                },
+                {
+                    "fieldname": "custom_cafm_team_members",
+                    "fieldtype": "Table",
+                    "label": "CAFM Team Members",
+                    "options": "Facility Maintenance Team Membership",
+                    "insert_after": "custom_cafm_team_section",
+                },
+            ],
+        },
+        update=True,
+    )
+
+    for property_name, value, property_type in (
+        ("reqd", "0", "Check"),
+        ("hidden", "1", "Check"),
+    ):
+        filters = {
+            "doc_type": "Asset Maintenance Team",
+            "field_name": "maintenance_team_members",
+            "property": property_name,
+        }
+        setter = frappe.db.get_value(
+            "Property Setter", filters, ["name", "value"], as_dict=True
+        )
+        if setter:
+            if setter.value != value:
+                frappe.db.set_value(
+                    "Property Setter",
+                    setter.name,
+                    "value",
+                    value,
+                    update_modified=False,
+                )
+            continue
+
+        make_property_setter(
+            "Asset Maintenance Team",
+            "maintenance_team_members",
+            property_name,
+            value,
+            property_type,
+            is_system_generated=False,
+        )
+
+
+def migrate_legacy_asset_maintenance_team_members():
+    for team_name in frappe.get_all("Asset Maintenance Team", pluck="name"):
+        team = frappe.get_doc("Asset Maintenance Team", team_name)
+        if team.get("custom_cafm_team_members"):
+            continue
+
+        for member in team.get("maintenance_team_members") or []:
+            employee = frappe.db.get_value(
+                "Employee",
+                {"user_id": member.team_member, "status": "Active"},
+                "name",
+            )
+            if not employee or not frappe.db.exists(
+                "Has Role",
+                {
+                    "parent": member.team_member,
+                    "parenttype": "User",
+                    "role": member.maintenance_role,
+                },
+            ):
+                continue
+            team.append(
+                "custom_cafm_team_members",
+                {
+                    "employee": employee,
+                    "user": member.team_member,
+                    "maintenance_role": member.maintenance_role,
+                },
+            )
+
+        if team.get("custom_cafm_team_members"):
+            team.save(ignore_permissions=True)
 
 
 def ensure_workflow_masters():

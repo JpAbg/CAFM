@@ -65,6 +65,32 @@ class TestRoleIntegrity(FrappeTestCase):
         with self.assertRaises(frappe.ValidationError):
             validate_member_roles(doc)
 
+    def test_duplicate_cafm_team_member_is_rejected_within_one_team(self):
+        assigned_role = frappe.get_all(
+            "Has Role",
+            filters={
+                "parent": self.role_row.parent,
+                "parenttype": "User",
+            },
+            pluck="role",
+            limit=1,
+        )[0]
+        doc = frappe._dict(
+            custom_cafm_team_members=[
+                frappe._dict(
+                    user=self.role_row.parent,
+                    maintenance_role=assigned_role,
+                ),
+                frappe._dict(
+                    user=self.role_row.parent,
+                    maintenance_role=assigned_role,
+                ),
+            ]
+        )
+
+        with self.assertRaises(frappe.ValidationError):
+            validate_member_roles(doc)
+
     def test_cafm_demo_user_rejects_unrelated_role_profile(self):
         user_id = "cafm.requester@example.com"
         if not frappe.db.exists("User", user_id):
