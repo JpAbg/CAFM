@@ -3,12 +3,67 @@ frappe.ui.form.on("Asset", {
         show_open_maintenance_work(frm);
         show_asset_maintenance_history(frm);
         show_warranty_status(frm);
+        add_asset_qr_actions(frm);
     },
 
     custom_operational_status(frm) {
         show_open_maintenance_work(frm);
     },
 });
+
+function add_asset_qr_actions(frm) {
+    if (frm.is_new()) return;
+
+    if (frappe.model.can_create("Issue")) {
+        frm.add_custom_button(__("Create Maintenance Request"), () => {
+            frappe.new_doc("Issue", {
+                company: frm.doc.company,
+                custom_facility_location: frm.doc.custom_asset_location,
+                custom_asset: frm.doc.name,
+                subject: __("Maintenance request for {0}", [frm.doc.asset_name]),
+            });
+        }, __("Maintenance"));
+    }
+
+    if (frm.doc.custom_asset_qr_code) {
+        frm.add_custom_button(__("Show QR Code"), () => {
+            show_asset_qr_dialog(frm);
+        }, __("QR Code"));
+    }
+}
+
+function show_asset_qr_dialog(frm) {
+    const dialog = new frappe.ui.Dialog({
+        title: __("Asset QR Code"),
+        fields: [{fieldtype: "HTML", fieldname: "qr_preview"}],
+        primary_action_label: __("Download QR Code"),
+        primary_action: () => {
+            download_asset_qr_code(frm);
+        },
+    });
+    const qr_url = frappe.utils.escape_html(frm.doc.custom_asset_qr_code);
+    const asset_name = frappe.utils.escape_html(frm.doc.asset_name || frm.doc.name);
+
+    dialog.get_field("qr_preview").$wrapper.html(
+        '<div class="text-center">'
+        + '<img src="' + qr_url + '" alt="' + __("QR code for {0}", [asset_name])
+        + '" style="max-width: 280px; width: 100%; image-rendering: pixelated;">'
+        + '<p class="text-muted mt-3 mb-0">'
+        + __("Scan this code to open the asset in CAFM.")
+        + "</p></div>"
+    );
+    dialog.show();
+}
+
+function download_asset_qr_code(frm) {
+    const link = document.createElement("a");
+    const asset_name = (frm.doc.name || "asset").replace(/[^a-z0-9_-]/gi, "-");
+    link.href = frm.doc.custom_asset_qr_code;
+    link.download = asset_name + "-cafm-qr.svg";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 
 function show_open_maintenance_work(frm) {
     const field = frm.fields_dict.custom_open_maintenance_work;

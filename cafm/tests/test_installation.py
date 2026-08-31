@@ -85,6 +85,14 @@ class TestCAFMInstallation(FrappeTestCase):
         )
         self.assertEqual(
             frappe.db.get_value(
+                "Custom Field",
+                {"dt": "Asset", "fieldname": "custom_asset_qr_code"},
+                ["label", "fieldtype", "read_only"],
+            ),
+            ("Asset QR Code", "Attach Image", 1),
+        )
+        self.assertEqual(
+            frappe.db.get_value(
                 "Property Setter",
                 {
                     "doc_type": "Asset",

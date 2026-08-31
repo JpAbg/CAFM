@@ -70,6 +70,7 @@ def setup_cafm():
     ensure_permissions()
     ensure_workflows()
     backfill_asset_locations()
+    backfill_asset_qr_codes()
     backfill_asset_maintenance_history()
     cleanup_legacy_reason_fields()
     frappe.clear_cache()
@@ -85,6 +86,12 @@ def backfill_asset_maintenance_history():
 
 def backfill_asset_locations():
     from cafm.location_sync import backfill_asset_locations as backfill
+
+    backfill()
+
+
+def backfill_asset_qr_codes():
+    from cafm.asset_qr import backfill_asset_qr_codes as backfill
 
     backfill()
 
@@ -320,6 +327,22 @@ def ensure_custom_fields():
                     "fieldtype": "Attach",
                     "label": "Warranty Document",
                     "insert_after": "custom_warranty_coverage",
+                },
+                {
+                    "fieldname": "custom_asset_qr_section",
+                    "fieldtype": "Section Break",
+                    "label": "Asset QR Code",
+                    "insert_after": "custom_warranty_document",
+                },
+                {
+                    "fieldname": "custom_asset_qr_code",
+                    "fieldtype": "Attach Image",
+                    "label": "Asset QR Code",
+                    "insert_after": "custom_asset_qr_section",
+                    "read_only": 1,
+                    "description": (
+                        "Scan to open this asset for signed-in CAFM staff."
+                    ),
                 },
                 {
                     "fieldname": "custom_open_maintenance_section",
