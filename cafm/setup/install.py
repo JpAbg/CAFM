@@ -59,6 +59,7 @@ def after_migrate():
 def setup_cafm():
     ensure_roles()
     ensure_issue_priorities()
+    ensure_general_inspection_category()
     ensure_custom_fields()
     ensure_asset_location_customization()
     ensure_workflow_masters()
@@ -114,6 +115,48 @@ def ensure_issue_priorities():
                     "description": description,
                 }
             ).insert(ignore_permissions=True)
+
+
+
+def ensure_general_inspection_category():
+    if not frappe.db.exists("Issue Type", "General"):
+        frappe.get_doc(
+            {
+                "doctype": "Issue Type",
+                "__newname": "General",
+            }
+        ).insert(ignore_permissions=True)
+
+    ensure_general_inspection_template()
+
+
+def ensure_general_inspection_template():
+    template_name = "General Facility Inspection"
+    if frappe.db.exists("Facility Inspection Template", template_name):
+        return
+
+    frappe.get_doc(
+        {
+            "doctype": "Facility Inspection Template",
+            "template_name": template_name,
+            "category": "General",
+            "is_active": 1,
+            "items": [
+                {
+                    "inspection_point": "Verify the area is safe and accessible.",
+                    "is_required": 1,
+                },
+                {
+                    "inspection_point": "Check for visible damage, leaks, or hazards.",
+                    "is_required": 1,
+                },
+                {
+                    "inspection_point": "Record any defects that require follow-up.",
+                    "is_required": 1,
+                },
+            ],
+        }
+    ).insert(ignore_permissions=True)
 
 
 def ensure_custom_fields():

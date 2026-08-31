@@ -1,4 +1,16 @@
 frappe.ui.form.on("Issue", {
+    setup(frm) {
+        cafm.set_asset_query_for_location(
+            frm,
+            "custom_asset",
+            "custom_facility_location"
+        );
+    },
+
+    custom_facility_location(frm) {
+        cafm.clear_asset_when_location_changes(frm, "custom_asset");
+    },
+
     issue_type(frm) {
         apply_cafm_priority_rule(frm);
     },

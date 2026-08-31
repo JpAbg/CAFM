@@ -42,12 +42,9 @@ class FacilityInspectionSchedule(Document):
             )
 
     def validate_template(self):
-        if not frappe.db.get_value(
-            "Facility Inspection Template",
-            self.inspection_template,
-            "is_active",
-        ):
-            frappe.throw(_("Inspection Template must be active."))
+        from cafm.inspection_templates import validate_inspection_template
+
+        validate_inspection_template(self.inspection_template, self.category)
 
     def validate_asset_location(self):
         if not self.asset:

@@ -1,11 +1,6 @@
 frappe.ui.form.on("Preventive Maintenance Plan", {
     setup(frm) {
-        frm.set_query("asset", () => ({
-            filters: {
-                company: frm.doc.company || undefined,
-                docstatus: 1,
-            },
-        }));
+        cafm.set_asset_query_for_location(frm, "asset", "facility_location");
         frm.set_query("technician", () => ({
             filters: {
                 status: "Active",
@@ -18,12 +13,15 @@ frappe.ui.form.on("Preventive Maintenance Plan", {
                 status: "Active",
             },
         }));
-        frm.set_query("inspection_template", () => ({
-            filters: {
-                is_active: 1,
-                category: frm.doc.category || undefined,
-            },
-        }));
+        cafm.set_inspection_template_query(frm);
+    },
+
+    facility_location(frm) {
+        cafm.clear_asset_when_location_changes(frm, "asset");
+    },
+
+    category(frm) {
+        cafm.clear_inspection_template_when_category_changes(frm);
     },
 
     refresh(frm) {
