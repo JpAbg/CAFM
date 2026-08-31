@@ -1,0 +1,97 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [],
+ "creation": "2026-08-26 18:45:46.754493",
+ "disable_prepared_report_automation": 0,
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "doctype_to_sync": [],
+ "filters": [
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "Created From Date",
+   "mandatory": 1,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "Created To Date",
+   "mandatory": 1,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "mandatory": 1,
+   "options": "Company",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "All",
+   "fieldname": "work_order_type",
+   "fieldtype": "Select",
+   "label": "Work Order Type",
+   "mandatory": 0,
+   "options": "All\nCorrective\nPreventive",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "All",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "mandatory": 0,
+   "options": "All\nDraft\nAssigned\nIn Progress\nPending\nResolved\nClosed\nCancelled",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "All",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "label": "Priority",
+   "mandatory": 0,
+   "options": "All\nLow\nMedium\nHigh\nCritical",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "All",
+   "fieldname": "assignment_type",
+   "fieldtype": "Select",
+   "label": "Assignment Type",
+   "mandatory": 0,
+   "options": "All\nInternal Technician\nExternal Vendor",
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": null,
+ "modified": "2026-08-26 18:52:25.355792",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Work Order Report",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "SELECT\r\n    wo.name AS \"Work Order:Link/Facility Work Order:160\",\r\n    DATE(wo.creation) AS \"Created Date:Date:105\",\r\n    wo.subject AS \"Subject:Data:220\",\r\n    wo.work_order_type AS \"Type:Data:90\",\r\n    wo.work_order_status AS \"Status:Data:105\",\r\n    wo.priority AS \"Priority:Link/Issue Priority:100\",\r\n    wo.category AS \"Category:Link/Issue Type:140\",\r\n\r\n    wo.facility_location AS\r\n        \"Facility Location:Link/Facility Location:190\",\r\n    location.site AS \"Site:Link/Site:130\",\r\n    location.building AS \"Building:Link/Building:130\",\r\n    wo.asset AS \"Asset:Link/Asset:150\",\r\n\r\n    wo.assignment_type AS \"Assignment Type:Data:130\",\r\n    wo.technician AS \"Technician:Link/Employee:150\",\r\n    wo.vendor AS\r\n        \"Service Provider:Link/Facility Service Provider:160\",\r\n\r\n    wo.planned_start AS \"Planned Start:Datetime:145\",\r\n    wo.planned_end AS \"Planned End:Datetime:145\",\r\n    wo.actual_start AS \"Actual Start:Datetime:145\",\r\n    wo.actual_end AS \"Actual End:Datetime:145\",\r\n\r\n    CASE\r\n        WHEN wo.planned_end IS NOT NULL\r\n             AND wo.planned_end < NOW()\r\n             AND wo.work_order_status IN (\r\n                 'Draft',\r\n                 'Assigned',\r\n                 'In Progress',\r\n                 'Pending'\r\n             )\r\n        THEN 'Yes'\r\n        ELSE 'No'\r\n    END AS \"Overdue:Data:75\",\r\n\r\n    CASE\r\n        WHEN wo.actual_start IS NOT NULL\r\n             AND wo.actual_end IS NOT NULL\r\n        THEN ROUND(\r\n            TIMESTAMPDIFF(\r\n                MINUTE,\r\n                wo.actual_start,\r\n                wo.actual_end\r\n            ) / 60,\r\n            2\r\n        )\r\n        ELSE 0\r\n    END AS \"Actual Duration (Hours):Float:140\",\r\n\r\n    COALESCE(labor.total_hours, 0)\r\n        AS \"Labor Hours:Float:100\",\r\n\r\n    wo.material_cost\r\n        AS \"Material Cost:Currency:115\",\r\n\r\n    wo.maintenance_request\r\n        AS \"Request:Link/Issue:140\",\r\n\r\n    wo.preventive_maintenance_plan\r\n        AS \"PM Plan:Link/Preventive Maintenance Plan:160\"\r\n\r\nFROM `tabFacility Work Order` wo\r\n\r\nLEFT JOIN `tabFacility Location` location\r\n    ON location.name = wo.facility_location\r\n\r\nLEFT JOIN (\r\n    SELECT\r\n        parent,\r\n        SUM(hours) AS total_hours\r\n    FROM `tabFacility Work Order Labor`\r\n    WHERE parenttype = 'Facility Work Order'\r\n    GROUP BY parent\r\n) labor\r\n    ON labor.parent = wo.name\r\n\r\nWHERE\r\n    DATE(wo.creation) BETWEEN %(from_date)s AND %(to_date)s\r\n\r\n    AND wo.company = %(company)s\r\n\r\n    AND (\r\n        %(work_order_type)s = 'All'\r\n        OR wo.work_order_type = %(work_order_type)s\r\n    )\r\n\r\n    AND (\r\n        %(status)s = 'All'\r\n        OR wo.work_order_status = %(status)s\r\n    )\r\n\r\n    AND (\r\n        %(priority)s = 'All'\r\n        OR wo.priority = %(priority)s\r\n    )\r\n\r\n    AND (\r\n        %(assignment_type)s = 'All'\r\n        OR wo.assignment_type = %(assignment_type)s\r\n    )\r\n\r\nORDER BY\r\n    wo.creation DESC",
+ "ref_doctype": "Facility Work Order",
+ "report_name": "Work Order Report",
+ "report_type": "Query Report",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Facility Manager"
+  },
+  {
+   "role": "Facility Coordinator"
+  }
+ ],
+ "snapshot_report": 0,
+ "timeout": 0
+}

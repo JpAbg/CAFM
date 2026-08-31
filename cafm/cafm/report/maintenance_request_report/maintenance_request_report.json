@@ -1,0 +1,79 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [],
+ "creation": "2026-08-26 17:45:46.863037",
+ "disable_prepared_report_automation": 0,
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "doctype_to_sync": [],
+ "filters": [
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date",
+   "mandatory": 1,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date",
+   "mandatory": 1,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "mandatory": 1,
+   "options": "Company",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "All",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "mandatory": 0,
+   "options": "All\nNew\nAssigned\nIn Progress\nPending\nResolved\nClosed\nRejected",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "All",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "label": "Priority",
+   "mandatory": 0,
+   "options": "All\nLow\nMedium\nHigh\nCritical",
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": null,
+ "modified": "2026-08-26 19:36:06.470420",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Maintenance Request Report",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "SELECT\r\n    i.name AS \"Request:Link/Issue:150\",\r\n    i.opening_date AS \"Request Date:Date:110\",\r\n    i.subject AS \"Subject:Data:220\",\r\n    i.custom_requester AS \"Requester:Link/Employee:160\",\r\n    i.custom_facility_location AS \"Facility Location:Link/Facility Location:200\",\r\n    fl.site AS \"Site:Link/Site:140\",\r\n    fl.building AS \"Building:Link/Building:140\",\r\n    i.custom_asset AS \"Asset:Link/Asset:160\",\r\n    i.issue_type AS \"Category:Link/Issue Type:140\",\r\n    i.priority AS \"Priority:Data:100\",\r\n    i.custom_issue_status AS \"Status:Data:110\",\r\n    i.custom_work_order AS \"Work Order:Link/Facility Work Order:150\",\r\n    DATEDIFF(CURDATE(), i.opening_date) AS \"Age (Days):Int:90\"\r\nFROM `tabIssue` i\r\nLEFT JOIN `tabFacility Location` fl\r\n    ON fl.name = i.custom_facility_location\r\nWHERE\r\n    i.opening_date BETWEEN %(from_date)s AND %(to_date)s\r\n    AND i.company = %(company)s\r\n    AND (\r\n        %(status)s = 'All'\r\n        OR i.custom_issue_status = %(status)s\r\n    )\r\n    AND (\r\n        %(priority)s = 'All'\r\n        OR i.priority = %(priority)s\r\n    )\r\nORDER BY\r\n    i.opening_date DESC,\r\n    i.opening_time DESC",
+ "ref_doctype": "Issue",
+ "report_name": "Maintenance Request Report",
+ "report_type": "Query Report",
+ "roles": [
+  {
+   "role": "Support Team"
+  },
+  {
+   "role": "Facility Manager"
+  },
+  {
+   "role": "Facility Coordinator"
+  }
+ ],
+ "snapshot_report": 0,
+ "timeout": 0
+}

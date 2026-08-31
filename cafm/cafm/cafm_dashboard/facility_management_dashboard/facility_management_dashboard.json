@@ -1,0 +1,54 @@
+{
+ "cards": [
+  {
+   "card": "Open Maintenance Requests"
+  },
+  {
+   "card": "Overdue Work Orders"
+  },
+  {
+   "card": "Average Response Time"
+  },
+  {
+   "card": "Average Resolution Time"
+  }
+ ],
+ "charts": [
+  {
+   "chart": "Work Orders by Priority",
+   "width": "Half"
+  },
+  {
+   "chart": "Asset Downtime",
+   "width": "Half"
+  },
+  {
+   "chart": "Work Order by Category",
+   "width": "Full"
+  },
+  {
+   "chart": "Preventive Maintenance Compliance",
+   "width": "Half"
+  },
+  {
+   "chart": "Top Recurring Asset Failures",
+   "width": "Half"
+  },
+  {
+   "chart": "Maintenance Cost by Site and Building",
+   "width": "Full"
+  }
+ ],
+ "creation": "2026-08-26 20:40:05.859016",
+ "dashboard_name": "Facility Management Dashboard",
+ "docstatus": 0,
+ "doctype": "Dashboard",
+ "idx": 0,
+ "is_default": 0,
+ "is_standard": 1,
+ "modified": "2026-08-27 13:09:02.722833",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Facility Management Dashboard",
+ "owner": "Administrator"
+}

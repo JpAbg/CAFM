@@ -1,0 +1,79 @@
+{
+ "add_total_row": 0,
+ "add_translate_data": 0,
+ "columns": [],
+ "creation": "2026-08-26 19:30:47.783598",
+ "disable_prepared_report_automation": 0,
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "doctype_to_sync": [],
+ "filters": [
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "Closed From Date",
+   "mandatory": 1,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "Closed To Date",
+   "mandatory": 1,
+   "wildcard_filter": 0
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "mandatory": 1,
+   "options": "Company",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "All",
+   "fieldname": "work_order_type",
+   "fieldtype": "Select",
+   "label": "Work Order Type",
+   "mandatory": 0,
+   "options": "All\nCorrective\nPreventive",
+   "wildcard_filter": 0
+  },
+  {
+   "default": "All",
+   "fieldname": "priority",
+   "fieldtype": "Select",
+   "label": "Priority",
+   "mandatory": 0,
+   "options": "All\nLow\nMedium\nHigh\nCritical",
+   "wildcard_filter": 0
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "letter_head": null,
+ "modified": "2026-08-26 19:35:23.382749",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Asset Maintenance History",
+ "owner": "Administrator",
+ "prepared_report": 0,
+ "query": "SELECT\r\n    history.name AS\r\n        \"History:Link/Facility Asset Maintenance History:150\",\r\n\r\n    history.asset AS\r\n        \"Asset:Link/Asset:150\",\r\n\r\n    asset.asset_name AS\r\n        \"Asset Name:Data:170\",\r\n\r\n    history.work_order AS\r\n        \"Work Order:Link/Facility Work Order:150\",\r\n\r\n    history.subject AS\r\n        \"Subject:Data:220\",\r\n\r\n    history.maintenance_request AS\r\n        \"Request:Link/Issue:140\",\r\n\r\n    history.work_order_type AS\r\n        \"Type:Data:90\",\r\n\r\n    history.category AS\r\n        \"Category:Link/Issue Type:130\",\r\n\r\n    history.priority AS\r\n        \"Priority:Link/Issue Priority:100\",\r\n\r\n    history.facility_location AS\r\n        \"Facility Location:Link/Facility Location:180\",\r\n\r\n    location.site AS\r\n        \"Site:Link/Site:120\",\r\n\r\n    location.building AS\r\n        \"Building:Link/Building:120\",\r\n\r\n    history.actual_start AS\r\n        \"Actual Start:Datetime:145\",\r\n\r\n    history.actual_end AS\r\n        \"Actual End:Datetime:145\",\r\n\r\n    history.downtime_hours AS\r\n        \"Downtime Hours:Float:110\",\r\n\r\n    history.labor_hours AS\r\n        \"Labor Hours:Float:100\",\r\n\r\n    history.material_cost AS\r\n        \"Material Cost:Currency:115\",\r\n\r\n    history.resolution_summary AS\r\n        \"Resolution Summary:Data:250\",\r\n\r\n    history.closed_by AS\r\n        \"Closed By:Link/User:150\",\r\n\r\n    history.closed_on AS\r\n        \"Closed On:Datetime:145\"\r\n\r\nFROM `tabFacility Asset Maintenance History` history\r\n\r\nLEFT JOIN `tabAsset` asset\r\n    ON asset.name = history.asset\r\n\r\nLEFT JOIN `tabFacility Location` location\r\n    ON location.name = history.facility_location\r\n\r\nWHERE\r\n    DATE(history.closed_on)\r\n        BETWEEN %(from_date)s AND %(to_date)s\r\n\r\n    AND history.company = %(company)s\r\n\r\n    AND (\r\n        %(work_order_type)s = 'All'\r\n        OR history.work_order_type = %(work_order_type)s\r\n    )\r\n\r\n    AND (\r\n        %(priority)s = 'All'\r\n        OR history.priority = %(priority)s\r\n    )\r\n\r\nORDER BY\r\n    history.closed_on DESC",
+ "ref_doctype": "Facility Asset Maintenance History",
+ "report_name": "Asset Maintenance History",
+ "report_type": "Query Report",
+ "roles": [
+  {
+   "role": "Quality Manager"
+  },
+  {
+   "role": "Facility Manager"
+  },
+  {
+   "role": "Facility Coordinator"
+  }
+ ],
+ "snapshot_report": 0,
+ "timeout": 0
+}

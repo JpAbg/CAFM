@@ -1,0 +1,12 @@
+.cafm-service-phone .selected-phone {
+    max-width: 96px;
+}
+
+.cafm-service-phone input.form-control {
+    padding-left: 108px !important;
+}
+
+[dir="rtl"] .cafm-service-phone input.form-control {
+    padding-left: var(--padding-sm) !important;
+    padding-right: 108px !important;
+}

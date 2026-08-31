@@ -1,0 +1,21 @@
+{
+  "name": "dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --base=/assets/cafm/dashboard/ && yarn copy-html-entry",
+    "preview": "vite preview",
+    "copy-html-entry": "cp ../cafm/public/dashboard/index.html ../cafm/www/dashboard.html"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.5.1",
+    "vue": "^3.5.41",
+    "vue-router": "^4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "vite": "^8.2.2"
+  }
+}
