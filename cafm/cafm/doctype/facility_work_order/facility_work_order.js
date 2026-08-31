@@ -3,6 +3,7 @@
 
 frappe.ui.form.on("Facility Work Order", {
     setup(frm) {
+        cafm.set_asset_query_for_location(frm, "asset", "facility_location");
         frm.set_query("technician", () => ({
             filters: {
                 status: "Active",
@@ -21,12 +22,7 @@ frappe.ui.form.on("Facility Work Order", {
                 company: frm.doc.company || undefined,
             },
         }));
-        frm.set_query("inspection_template", () => ({
-            filters: {
-                is_active: 1,
-                category: frm.doc.category || undefined,
-            },
-        }));
+        cafm.set_inspection_template_query(frm);
         frm.set_query("item_code", "materials", () => ({
             filters: {
                 is_stock_item: 1,
@@ -49,6 +45,14 @@ frappe.ui.form.on("Facility Work Order", {
                 },
             };
         });
+    },
+
+    facility_location(frm) {
+        cafm.clear_asset_when_location_changes(frm, "asset");
+    },
+
+    category(frm) {
+        cafm.clear_inspection_template_when_category_changes(frm);
     },
 
     refresh(frm) {

@@ -138,6 +138,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "General",
    "fieldname": "category",
    "fieldtype": "Link",
    "label": "Category",

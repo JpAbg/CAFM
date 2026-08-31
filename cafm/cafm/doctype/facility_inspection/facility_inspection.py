@@ -133,12 +133,10 @@ class FacilityInspection(Document):
     def validate_template(self):
         if not self.inspection_template:
             frappe.throw(_("Inspection Template is required."))
-        if self.is_new() and not frappe.db.get_value(
-            "Facility Inspection Template",
-            self.inspection_template,
-            "is_active",
-        ):
-            frappe.throw(_("The selected Inspection Template is inactive."))
+
+        from cafm.inspection_templates import validate_inspection_template
+
+        validate_inspection_template(self.inspection_template, self.category)
         if not self.results:
             frappe.throw(_("The Inspection Template has no checklist items."))
 

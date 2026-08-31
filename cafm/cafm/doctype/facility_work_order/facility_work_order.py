@@ -38,6 +38,7 @@ class FacilityWorkOrder(Document):
         self.validate_assignment()
         self.validate_dates()
         self.validate_asset_location()
+        self.validate_inspection_template()
         self.validate_labor_entries()
         self.validate_materials()
         self.validate_checklist()
@@ -318,6 +319,11 @@ class FacilityWorkOrder(Document):
             frappe.throw(
                 _("The Asset does not belong to the selected Facility Location.")
             )
+
+    def validate_inspection_template(self):
+        from cafm.inspection_templates import validate_inspection_template
+
+        validate_inspection_template(self.inspection_template, self.category)
 
     def validate_labor_entries(self):
         for row in self.labor_entries:

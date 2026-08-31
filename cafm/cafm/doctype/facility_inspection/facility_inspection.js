@@ -1,11 +1,24 @@
 frappe.ui.form.on("Facility Inspection", {
     setup(frm) {
-        frm.set_query("inspection_template", () => ({
-            filters: { is_active: 1 },
-        }));
+        cafm.set_asset_query_for_location(frm, "asset", "facility_location");
+        cafm.set_inspection_template_query(frm);
         frm.set_query("inspector", () => ({
             filters: { status: "Active" },
         }));
+    },
+
+    onload(frm) {
+        if (frm.is_new() && !frm.doc.category) {
+            frm.set_value("category", "General");
+        }
+    },
+
+    facility_location(frm) {
+        cafm.clear_asset_when_location_changes(frm, "asset");
+    },
+
+    category(frm) {
+        cafm.clear_inspection_template_when_category_changes(frm);
     },
 
     refresh(frm) {

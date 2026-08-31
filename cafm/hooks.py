@@ -28,7 +28,10 @@ required_apps = ["erpnext", "hrms"]
 
 # include js, css files in header of desk.html
 app_include_css = "/assets/cafm/css/cafm.css"
-app_include_js = "/assets/cafm/js/custom-dashboard-chart.js?v=20"
+app_include_js = [
+    "/assets/cafm/js/custom-dashboard-chart.js?v=20",
+    "/assets/cafm/js/facility_asset_filters.js?v=6",
+]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/cafm/css/cafm.css"
