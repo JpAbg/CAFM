@@ -266,6 +266,7 @@ doc_events = {
     },
     "Asset": {
         "validate": "cafm.events.asset.validate_cafm_asset",
+        "after_insert": "cafm.events.asset.create_asset_qr_code",
     },
     "Asset Maintenance Team": {
         "validate": "cafm.events.asset_maintenance_team.validate_member_roles",
