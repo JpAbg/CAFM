@@ -43,6 +43,7 @@ from cafm.inspections import (
 )
 from cafm.materials import issue_materials
 from cafm.notifications import (
+    notify_overdue_escalations,
     notify_overdue_work_orders,
     send_daily_overdue_summary,
 )
@@ -1038,6 +1039,33 @@ class TestFacilityWorkOrder(FrappeTestCase):
                 ),
                 1,
             )
+
+        for _ in range(2):
+            escalations = notify_overdue_escalations(reference_datetime)
+            self.assertTrue(
+                any(
+                    row["work_order"] == work_order.name
+                    for row in escalations
+                )
+            )
+
+        critical_escalation_title = (
+            "Overdue Escalation (1h) - Critical work order escalation: "
+            f"{work_order.name}"
+        )
+        self.assertEqual(
+            frappe.db.count(
+                "Notification Log",
+                {
+                    "type": "Alert",
+                    "title": critical_escalation_title,
+                    "document_type": "Facility Work Order",
+                    "document_name": work_order.name,
+                    "for_user": self.manager_user,
+                },
+            ),
+            1,
+        )
 
         overdue_title = (
             f"Overdue Work Order {work_order.name}: {work_order.subject}"

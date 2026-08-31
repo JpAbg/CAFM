@@ -1,4 +1,5 @@
 import frappe
+from frappe import _
 from frappe.utils import add_to_date, cint, now_datetime, time_diff_in_hours
 
 
@@ -14,8 +15,17 @@ def _count_work_orders(filters):
 
 @frappe.whitelist()
 def get_overdue_work_orders(filters=None):
-    """Return the permission-aware count used by the overdue work card."""
+    """Count open work orders that became overdue less than four hours ago."""
+    return _get_overdue_bucket_card(
+        minimum_hours=0,
+        maximum_hours=4,
+        label=_("Work Orders"),
+    )
+
+
+def _get_overdue_bucket_card(minimum_hours, maximum_hours, label):
     current_time = now_datetime()
+    latest_due_time = add_to_date(current_time, hours=-minimum_hours)
     work_order_filters = [
         [
             "Facility Work Order",
@@ -24,29 +34,25 @@ def get_overdue_work_orders(filters=None):
             ["Resolved", "Closed", "Cancelled"],
         ],
         ["Facility Work Order", "planned_end", "is", "set"],
-        ["Facility Work Order", "planned_end", "<", current_time],
+        ["Facility Work Order", "planned_end", "<=", latest_due_time],
     ]
 
+    if maximum_hours is not None:
+        earliest_due_time = add_to_date(current_time, hours=-maximum_hours)
+        work_order_filters.append(
+            ["Facility Work Order", "planned_end", ">", earliest_due_time]
+        )
+
     value = _count_work_orders(work_order_filters)
-    previous_time = add_to_date(current_time, days=-1)
-    previous_value = _count_work_orders(
-        work_order_filters
-        + [
-            ["Facility Work Order", "creation", "<", previous_time],
-            ["Facility Work Order", "planned_end", "<", previous_time],
-        ]
-    )
-    trend_percentage = (
-        round(((value / previous_value) - 1) * 100, 2)
-        if previous_value
-        else None
+    route_start = (
+        str(earliest_due_time)
+        if maximum_hours is not None
+        else "1900-01-01 00:00:00"
     )
 
     return {
         "value": value,
         "fieldtype": "Int",
-        "trend_percentage": trend_percentage,
-        "trend_label": "since yesterday",
         "route": ["List", "Facility Work Order"],
         "route_options": {
             "work_order_status": [
@@ -55,10 +61,31 @@ def get_overdue_work_orders(filters=None):
             ],
             "planned_end": [
                 "between",
-                ["1900-01-01 00:00:00", str(current_time)],
+                [route_start, str(latest_due_time)],
             ],
         },
+        "message": _("{0} in this overdue time band.").format(label),
     }
+
+
+@frappe.whitelist()
+def get_delayed_work_orders(filters=None):
+    """Count open work orders that are overdue from four to under 24 hours."""
+    return _get_overdue_bucket_card(
+        minimum_hours=4,
+        maximum_hours=24,
+        label=_("Work Orders"),
+    )
+
+
+@frappe.whitelist()
+def get_escalated_work_orders(filters=None):
+    """Count open work orders that are overdue by one day or more."""
+    return _get_overdue_bucket_card(
+        minimum_hours=24,
+        maximum_hours=None,
+        label=_("Work Orders"),
+    )
 
 
 @frappe.whitelist()
