@@ -1,0 +1,21 @@
+{
+  "name": "cafm",
+  "version": "1.0.0",
+  "description": "A Computer-Aided Facility Management application for Frappe, ERPNext, and HRMS.",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "(cd dashboard && yarn install)",
+    "build": "(cd dashboard && yarn build)",
+    "dev": "(cd dashboard && yarn dev)"
+  },
+  "keywords": [
+    "cafm",
+    "facility-management",
+    "frappe",
+    "erpnext",
+    "hrms"
+  ],
+  "author": "Jean Paul Abou Gharib",
+  "license": "MIT",
+  "type": "commonjs"
+}

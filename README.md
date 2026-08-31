@@ -1,6 +1,6 @@
 ### CAFM
 
-a complete Computer-Aided Facility Management (CAFM
+a complete Computer-Aided Facility Management (CAFM)
 
 ### Installation
 

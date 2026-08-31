@@ -3,7 +3,7 @@ name = "cafm"
 authors = [
     { name = "Jean Paul Abou Gharib", email = "abougharib.jp@gmail.com"}
 ]
-description = "a complete Computer-Aided Facility Management (CAFM"
+description = "A Computer-Aided Facility Management application for Frappe, ERPNext, and HRMS."
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
