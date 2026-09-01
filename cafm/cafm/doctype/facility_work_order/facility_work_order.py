@@ -33,6 +33,7 @@ class FacilityWorkOrder(Document):
 
     def validate(self):
         self.validate_vendor_access()
+        self.validate_vendor_commercial_details()
         self.validate_source()
         self.validate_duplicate_active_work_order()
         self.validate_duplicate_preventive_occurrence()
@@ -70,6 +71,27 @@ class FacilityWorkOrder(Document):
     def on_trash(self):
         self.close_assignments()
         self.clear_issue_link()
+
+    def validate_vendor_commercial_details(self):
+        from cafm.cafm.doctype.facility_service_contract.facility_service_contract import (
+            validate_contract_for_work_order,
+        )
+
+        if self.assignment_type != "External Vendor":
+            self.service_contract = None
+            self.selected_vendor_quotation = None
+            self.external_service_cost = 0
+            return
+
+        validate_contract_for_work_order(self)
+        if self.selected_vendor_quotation:
+            quotation = frappe.get_doc(
+                "Facility Vendor Quotation", self.selected_vendor_quotation
+            )
+            if quotation.work_order != self.name or quotation.service_provider != self.vendor:
+                frappe.throw(
+                    _("The selected Vendor Quotation must belong to this work order and vendor.")
+                )
 
     def validate_vendor_access(self):
         from cafm.permissions import validate_vendor_work_order_changes

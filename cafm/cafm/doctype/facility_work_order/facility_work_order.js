@@ -16,6 +16,13 @@ frappe.ui.form.on("Facility Work Order", {
                 status: "Active",
             },
         }));
+        frm.set_query("service_contract", () => ({
+            filters: {
+                contract_status: "Active",
+                company: frm.doc.company || undefined,
+                service_provider: frm.doc.vendor || undefined,
+            },
+        }));
         frm.set_query("preventive_maintenance_plan", () => ({
             filters: {
                 is_active: 1,
@@ -56,6 +63,7 @@ frappe.ui.form.on("Facility Work Order", {
     },
 
     refresh(frm) {
+        add_vendor_commercial_actions(frm);
         if (!frm.is_new() && frm.doc.inspection_template) {
             frm.add_custom_button(__("Create Inspection"), () => {
                 frappe.call({
@@ -156,3 +164,47 @@ frappe.ui.form.on("Facility Work Order", {
             });
     },
 });
+
+function add_vendor_commercial_actions(frm) {
+    if (frm.is_new()) return;
+
+    if (frappe.model.can_create("Facility Vendor Quotation")) {
+        frm.add_custom_button(__("Request Vendor Quotation"), () => {
+            frappe.new_doc("Facility Vendor Quotation", {
+                quotation_name: __("Quotation for {0}", [frm.doc.name]),
+                work_order: frm.doc.name,
+                company: frm.doc.company,
+                service_provider: frm.doc.vendor,
+                service_contract: frm.doc.service_contract,
+                scope_of_work: frm.doc.work_description,
+            });
+        }, __("Vendor"));
+    }
+
+    if (frappe.model.can_read("Facility Vendor Quotation")) {
+        frm.add_custom_button(__("View Vendor Quotations"), () => {
+            frappe.set_route("List", "Facility Vendor Quotation", {
+                work_order: frm.doc.name,
+            });
+        }, __("Vendor"));
+    }
+
+    if (frappe.model.can_read("Facility Service Contract")) {
+        frm.add_custom_button(__("View Matching Contracts"), () => {
+            frappe.call({
+                method: "cafm.cafm.doctype.facility_service_contract.facility_service_contract.get_matching_service_contracts",
+                args: {work_order_name: frm.doc.name},
+                callback(r) {
+                    const contracts = r.message || [];
+                    if (!contracts.length) {
+                        frappe.msgprint(__("No active Service Contract matches this work order."));
+                        return;
+                    }
+                    frappe.set_route("List", "Facility Service Contract", {
+                        name: ["in", contracts.map((contract) => contract.name)],
+                    });
+                },
+            });
+        }, __("Vendor"));
+    }
+}
