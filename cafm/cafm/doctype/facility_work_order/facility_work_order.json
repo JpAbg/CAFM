@@ -37,6 +37,16 @@
   "service_contract",
   "selected_vendor_quotation",
   "external_service_cost",
+  "sla_section",
+  "sla_policy",
+  "sla_response_due",
+  "sla_resolution_due",
+  "column_break_sla",
+  "sla_response_achieved_on",
+  "sla_resolution_achieved_on",
+  "sla_status",
+  "sla_response_breached_on",
+  "sla_resolution_breached_on",
   "schedule_section",
   "planned_start",
   "planned_end",
@@ -237,6 +247,70 @@
    "options": "currency",
    "read_only": 1,
    "depends_on": "eval:doc.assignment_type=='External Vendor'"
+  },
+  {
+   "fieldname": "sla_section",
+   "fieldtype": "Section Break",
+   "label": "SLA Tracking"
+  },
+  {
+   "fieldname": "sla_policy",
+   "fieldtype": "Link",
+   "label": "SLA Policy",
+   "options": "Facility SLA Policy",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sla_response_due",
+   "fieldtype": "Datetime",
+   "label": "Response Due",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sla_resolution_due",
+   "fieldtype": "Datetime",
+   "label": "Resolution Due",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_sla",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "sla_response_achieved_on",
+   "fieldtype": "Datetime",
+   "label": "Response Achieved On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sla_resolution_achieved_on",
+   "fieldtype": "Datetime",
+   "label": "Resolution Achieved On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sla_status",
+   "fieldtype": "Select",
+   "label": "SLA Status",
+   "options": "Not Applicable\nOn Track\nResponse Breached\nResolution Breached\nMet",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sla_response_breached_on",
+   "fieldtype": "Datetime",
+   "label": "Response Breach Notified On",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "sla_resolution_breached_on",
+   "fieldtype": "Datetime",
+   "label": "Resolution Breach Notified On",
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "schedule_section",

@@ -30,6 +30,7 @@ class FacilityWorkOrder(Document):
         self.populate_from_preventive_plan()
         self.populate_warranty_details()
         self.set_preventive_occurrence_key()
+        self.update_sla_tracking()
 
     def validate(self):
         self.validate_vendor_access()
@@ -71,6 +72,11 @@ class FacilityWorkOrder(Document):
     def on_trash(self):
         self.close_assignments()
         self.clear_issue_link()
+
+    def update_sla_tracking(self):
+        from cafm.sla import update_work_order_sla
+
+        update_work_order_sla(self)
 
     def validate_vendor_commercial_details(self):
         from cafm.cafm.doctype.facility_service_contract.facility_service_contract import (

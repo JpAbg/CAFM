@@ -1,0 +1,14 @@
+{
+ "cards": [
+  {"card": "On-Track Work Orders"},
+  {"card": "Response-Breached Work Orders"},
+  {"card": "Resolution-Breached Work Orders"},
+  {"card": "SLA-Met Work Orders"}
+ ],
+ "charts": [
+  {"chart": "Work Orders by SLA Status", "width": "Full"}
+ ],
+ "dashboard_name": "SLA Performance Dashboard",
+ "docstatus": 0, "doctype": "Dashboard", "is_default": 0,
+ "is_standard": 1, "module": "CAFM", "name": "SLA Performance Dashboard"
+}
