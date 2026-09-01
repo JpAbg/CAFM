@@ -2,6 +2,8 @@
 
 Computer-Aided Facility Management application built on Frappe, ERPNext, and HRMS.
 
+For everyday operational use, see the [CAFM User Guide](USER_GUIDE.md).
+
 ## Requirements
 
 - **Frappe Framework:** version 15
