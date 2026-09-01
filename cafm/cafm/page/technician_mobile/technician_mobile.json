@@ -1,0 +1,13 @@
+{
+ "content": null,
+ "docstatus": 0,
+ "doctype": "Page",
+ "icon": "fa fa-mobile",
+ "module": "CAFM",
+ "name": "technician-mobile",
+ "page_name": "technician-mobile",
+ "roles": [{"role": "Technician"}],
+ "standard": "Yes",
+ "system_page": 0,
+ "title": "Technician Mobile"
+}
