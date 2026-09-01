@@ -737,6 +737,22 @@ def ensure_permissions():
             "Facility Manager": {"read", "report", "export", "print"},
             "Facility Coordinator": {"read", "report", "export", "print"},
         },
+        "Facility Service Contract": {
+            "Facility Manager": {
+                "read", "write", "create", "delete", "report", "share",
+            },
+            "Facility Coordinator": {
+                "read", "write", "create", "report", "share",
+            },
+        },
+        "Facility Vendor Quotation": {
+            "Facility Manager": {
+                "read", "write", "create", "delete", "report", "share",
+            },
+            "Facility Coordinator": {
+                "read", "write", "create", "report", "share",
+            },
+        },
         "Facility Service Provider": {
             "Facility Manager": {
                 "read",

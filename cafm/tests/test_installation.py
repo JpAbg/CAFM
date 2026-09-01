@@ -117,6 +117,8 @@ class TestCAFMInstallation(FrappeTestCase):
         )
 
     def test_packaged_reports_dashboard_and_scheduler_exist(self):
+        self.assertTrue(frappe.db.exists("DocType", "Facility Service Contract"))
+        self.assertTrue(frappe.db.exists("DocType", "Facility Vendor Quotation"))
         self.assertTrue(
             frappe.db.exists(
                 "Dashboard",

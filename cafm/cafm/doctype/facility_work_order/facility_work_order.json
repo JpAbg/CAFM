@@ -33,6 +33,10 @@
   "assignment_type",
   "technician",
   "vendor",
+  "commercial_section",
+  "service_contract",
+  "selected_vendor_quotation",
+  "external_service_cost",
   "schedule_section",
   "planned_start",
   "planned_end",
@@ -204,6 +208,35 @@
    "fieldtype": "Link",
    "label": "Service Provider",
    "options": "Facility Service Provider"
+  },
+  {
+   "fieldname": "commercial_section",
+   "fieldtype": "Section Break",
+   "label": "Vendor Commercials",
+   "depends_on": "eval:doc.assignment_type=='External Vendor'"
+  },
+  {
+   "fieldname": "service_contract",
+   "fieldtype": "Link",
+   "label": "Service Contract",
+   "options": "Facility Service Contract",
+   "depends_on": "eval:doc.assignment_type=='External Vendor'"
+  },
+  {
+   "fieldname": "selected_vendor_quotation",
+   "fieldtype": "Link",
+   "label": "Selected Vendor Quotation",
+   "options": "Facility Vendor Quotation",
+   "read_only": 1,
+   "depends_on": "eval:doc.assignment_type=='External Vendor'"
+  },
+  {
+   "fieldname": "external_service_cost",
+   "fieldtype": "Currency",
+   "label": "Agreed External Service Cost",
+   "options": "currency",
+   "read_only": 1,
+   "depends_on": "eval:doc.assignment_type=='External Vendor'"
   },
   {
    "fieldname": "schedule_section",

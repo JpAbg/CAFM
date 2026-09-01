@@ -1,0 +1,226 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-09-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "quotation_section",
+  "quotation_name",
+  "work_order",
+  "service_provider",
+  "company",
+  "column_break_quote",
+  "quotation_status",
+  "vendor_reference",
+  "quotation_document",
+  "scope_section",
+  "scope_of_work",
+  "expected_completion_days",
+  "valid_until",
+  "warranty_offered",
+  "contract_section",
+  "service_contract",
+  "pricing_section",
+  "currency",
+  "quoted_amount",
+  "tax_amount",
+  "total_amount",
+  "selection_section",
+  "selected_by",
+  "selected_on",
+  "selection_notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "quotation_section",
+   "fieldtype": "Section Break",
+   "label": "Vendor Quotation"
+  },
+  {
+   "fieldname": "quotation_name",
+   "fieldtype": "Data",
+   "label": "Quotation Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "work_order",
+   "fieldtype": "Link",
+   "label": "Facility Work Order",
+   "options": "Facility Work Order",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "service_provider",
+   "fieldtype": "Link",
+   "label": "Service Provider",
+   "options": "Facility Service Provider",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "ignore_user_permissions": 1
+  },
+  {
+   "fieldname": "column_break_quote",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "quotation_status",
+   "fieldtype": "Select",
+   "label": "Quotation Status",
+   "options": "Draft\nReceived\nSelected\nRejected\nExpired",
+   "default": "Draft",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "vendor_reference",
+   "fieldtype": "Data",
+   "label": "Vendor Quotation Reference"
+  },
+  {
+   "fieldname": "quotation_document",
+   "fieldtype": "Attach",
+   "label": "Quotation Document"
+  },
+  {
+   "fieldname": "scope_section",
+   "fieldtype": "Section Break",
+   "label": "Scope and Timing"
+  },
+  {
+   "fieldname": "scope_of_work",
+   "fieldtype": "Text Editor",
+   "label": "Scope of Work",
+   "reqd": 1
+  },
+  {
+   "fieldname": "expected_completion_days",
+   "fieldtype": "Int",
+   "label": "Expected Completion (Days)",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "valid_until",
+   "fieldtype": "Date",
+   "label": "Valid Until",
+   "reqd": 1
+  },
+  {
+   "fieldname": "warranty_offered",
+   "fieldtype": "Small Text",
+   "label": "Warranty Offered"
+  },
+  {
+   "fieldname": "contract_section",
+   "fieldtype": "Section Break",
+   "label": "Contract"
+  },
+  {
+   "fieldname": "service_contract",
+   "fieldtype": "Link",
+   "label": "Service Contract",
+   "options": "Facility Service Contract"
+  },
+  {
+   "fieldname": "pricing_section",
+   "fieldtype": "Section Break",
+   "label": "Pricing"
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "default": "USD",
+   "reqd": 1
+  },
+  {
+   "fieldname": "quoted_amount",
+   "fieldtype": "Currency",
+   "label": "Quoted Amount",
+   "options": "currency",
+   "reqd": 1,
+   "non_negative": 1
+  },
+  {
+   "fieldname": "tax_amount",
+   "fieldtype": "Currency",
+   "label": "Tax Amount",
+   "options": "currency",
+   "default": "0",
+   "non_negative": 1
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "label": "Total Amount",
+   "options": "currency",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "selection_section",
+   "fieldtype": "Section Break",
+   "label": "Selection"
+  },
+  {
+   "fieldname": "selected_by",
+   "fieldtype": "Link",
+   "label": "Selected By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "selected_on",
+   "fieldtype": "Datetime",
+   "label": "Selected On",
+   "read_only": 1
+  },
+  {
+   "fieldname": "selection_notes",
+   "fieldtype": "Small Text",
+   "label": "Selection Notes"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [
+  {
+   "link_doctype": "Facility Work Order",
+   "link_fieldname": "selected_vendor_quotation"
+  }
+ ],
+ "modified": "2026-09-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Facility Vendor Quotation",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

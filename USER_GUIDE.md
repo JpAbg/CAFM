@@ -160,6 +160,16 @@ CAFM calculates the status automatically:
 
 Mark a work order as a warranty claim only when the Asset is within its valid warranty period.
 
+## Vendor quotations and service contracts
+
+Use **Facility Service Provider** for approved external vendors. Each provider is linked to its ERPNext Supplier, contact details, service categories, availability, and vendor user.
+
+From a saved Facility Work Order, use **Vendor - Request Vendor Quotation** to create a quotation record. Add one quotation for each vendor, including the scope, expected completion time, valid-until date, warranty, price, tax, and attached quotation document.
+
+When a quotation has been received, open it and select **Actions - Select Quotation**. CAFM marks that quotation as selected, rejects the other open quotations for the same job, assigns the external vendor to the Work Order, and records the agreed cost.
+
+Use **Facility Service Contract** for longer agreements. Set the provider, dates, value, document, and coverage scope. A contract may cover all assets, one facility location, one asset, or one service category. The Work Order's **Vendor - View Matching Contracts** action identifies active contracts that apply to that job.
+
 ## Dashboard and reports
 
 Use the **Facility Management Dashboard** for a quick operational view:
