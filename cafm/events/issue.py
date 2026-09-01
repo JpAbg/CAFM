@@ -31,6 +31,8 @@ def validate_cafm_issue(doc, method=None):
 
 
 def apply_priority_rules(doc):
+    if getattr(doc.flags, "preserve_portal_priority", False):
+        return
     doc.priority = get_automatic_priority(
         issue_type=doc.issue_type,
         asset=doc.custom_asset,

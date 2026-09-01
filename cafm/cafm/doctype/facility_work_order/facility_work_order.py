@@ -465,7 +465,7 @@ class FacilityWorkOrder(Document):
 
     def sync_technician_assignment(self):
         desired_user = None
-        if self.work_order_status not in ("Draft", "Closed", "Cancelled"):
+        if self.work_order_status not in ("Draft", "Resolved", "Closed", "Cancelled"):
             if (
                 self.assignment_type == "Internal Technician"
                 and self.technician

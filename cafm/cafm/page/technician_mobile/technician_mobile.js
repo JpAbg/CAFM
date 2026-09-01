@@ -46,3 +46,42 @@ CAFMTechnicianMobile.prototype.showNotifications=function(){const mobile=this;fr
 frappe.dom.set_style(".modal .form-group[data-fieldname=notification_list] .control-input-wrapper{display:flex;flex-direction:column}.modal .cafm-notif-list{order:1}.modal .cafm-notif-clear{order:2;align-self:flex-end;margin-top:16px}");
 
 frappe.dom.set_style(".modal .cafm-notif-clear{margin:0!important}.modal .form-group[data-fieldname=notification_list] .control-input-wrapper{display:block!important}");
+
+
+CAFMTechnicianMobile.prototype.showNotifications=function(){
+ const mobile=this;
+ frappe.call({method:"cafm.mobile.get_my_mobile_notifications",callback:function(r){
+  const items=(r.message||{}).notifications||[];
+  const unread=items.filter(function(n){return !n.read;}).map(function(n){return n.name;});
+  if(unread.length){
+   frappe.call({method:"cafm.mobile.mark_mobile_notifications_read",args:{names:unread}});
+   mobile.$el.find(".cafm-notification-count").text("");
+   localStorage.setItem("cafm_mobile_notifications_read_at",new Date().toISOString());
+  }
+  const dialog=new frappe.ui.Dialog({title:__("Notifications"),fields:[{fieldtype:"HTML",fieldname:"notification_list"}]});
+  const rows=items.length?items.map(function(n){
+   const subject=frappe.utils.escape_html(String(n.subject||"Notification").replace(/<[^>]*>/g,"").replace(/<[^>]*>/g,""));
+   const linked=n.document_type==="Facility Work Order"&&n.document_name;
+   const action=linked?'<button class="cafm-notif-open" data-doctype="'+frappe.utils.escape_html(n.document_type)+'" data-name="'+frappe.utils.escape_html(n.document_name)+'" title="Open work order">'+subject+'</button>':'<span>'+subject+'</span>';
+   return '<div class="cafm-notif-row">'+action+'<button class="cafm-notif-dismiss" data-name="'+frappe.utils.escape_html(n.name)+'" title="Remove notification">x</button></div>';
+  }).join(""):"<p>No notifications yet.</p>";
+  dialog.fields_dict.notification_list.$wrapper.html('<div class="cafm-notif-list">'+rows+'</div><button class="btn btn-sm btn-primary cafm-notif-clear">Clear all</button>');
+  dialog.show();
+  dialog.$wrapper.find(".cafm-notif-open").on("click",function(event){
+   const button=$(event.currentTarget);
+   dialog.hide();
+   frappe.set_route("Form",button.data("doctype"),button.data("name"));
+  });
+  dialog.$wrapper.find(".cafm-notif-dismiss").on("click",function(event){
+   event.stopPropagation();
+   $(event.currentTarget).closest(".cafm-notif-row").remove();
+   if(!dialog.$wrapper.find(".cafm-notif-row").length){
+    dialog.fields_dict.notification_list.$wrapper.find(".cafm-notif-list").html("<p>No notifications yet.</p>");
+   }
+  });
+  dialog.$wrapper.find(".cafm-notif-clear").on("click",function(){
+   dialog.fields_dict.notification_list.$wrapper.find(".cafm-notif-list").html("<p>No notifications yet.</p>");
+  });
+ }});
+};
+frappe.dom.set_style(".cafm-notif-row{position:relative;padding:10px 42px 10px 0;border-bottom:1px solid #e5edf3}.cafm-notif-open{display:block;width:100%;padding:0;border:0;background:transparent;color:#174f80;text-align:left;font-weight:600;cursor:pointer}.cafm-notif-open:hover{color:#0f5a97;text-decoration:underline}.cafm-notif-dismiss{position:absolute;top:8px;right:0;width:25px;height:25px;border:0;border-radius:6px;background:#f1f5f8;color:#5d7184;font-size:16px}.cafm-notif-clear{float:right;margin-top:16px}");
