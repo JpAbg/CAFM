@@ -1,0 +1,7 @@
+{
+ "doctype": "Dashboard Chart Source",
+ "module": "CAFM",
+ "name": "SLA Status Breakdown",
+ "source_name": "SLA Status Breakdown",
+ "timeseries": 0
+}

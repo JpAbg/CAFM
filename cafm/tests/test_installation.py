@@ -117,6 +117,14 @@ class TestCAFMInstallation(FrappeTestCase):
         )
 
     def test_packaged_reports_dashboard_and_scheduler_exist(self):
+        self.assertTrue(frappe.db.exists("DocType", "Facility SLA Policy"))
+        for policy in (
+            "Critical Work Order SLA",
+            "High Work Order SLA",
+            "Medium Work Order SLA",
+            "Low Work Order SLA",
+        ):
+            self.assertTrue(frappe.db.exists("Facility SLA Policy", policy))
         self.assertTrue(frappe.db.exists("DocType", "Facility Service Contract"))
         self.assertTrue(frappe.db.exists("DocType", "Facility Vendor Quotation"))
         self.assertTrue(

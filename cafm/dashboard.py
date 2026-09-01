@@ -147,3 +147,49 @@ def get_average_resolution_time(filters=None):
         "route": ["List", "Facility Work Order"],
         "route_options": {"actual_end": ["is", "set"]},
     }
+
+
+SLA_DASHBOARD_ROLES = ("Facility Manager", "Facility Coordinator")
+
+
+def _require_sla_dashboard_access():
+    allowed_roles = set(SLA_DASHBOARD_ROLES) | {"System Manager"}
+    if not allowed_roles.intersection(frappe.get_roles(frappe.session.user)):
+        frappe.throw(_("Not permitted."), frappe.PermissionError)
+
+
+def _get_sla_status_card(status):
+    _require_sla_dashboard_access()
+    value = _count_work_orders(
+        [
+            ["Facility Work Order", "sla_policy", "is", "set"],
+            ["Facility Work Order", "sla_status", "=", status],
+        ]
+    )
+    return {
+        "value": value,
+        "fieldtype": "Int",
+        "route": ["List", "Facility Work Order"],
+        "route_options": {"sla_policy": ["is", "set"], "sla_status": status},
+        "message": _("Work orders with SLA status: {0}.").format(status),
+    }
+
+
+@frappe.whitelist()
+def get_on_track_work_orders(filters=None):
+    return _get_sla_status_card("On Track")
+
+
+@frappe.whitelist()
+def get_response_breached_work_orders(filters=None):
+    return _get_sla_status_card("Response Breached")
+
+
+@frappe.whitelist()
+def get_resolution_breached_work_orders(filters=None):
+    return _get_sla_status_card("Resolution Breached")
+
+
+@frappe.whitelist()
+def get_sla_met_work_orders(filters=None):
+    return _get_sla_status_card("Met")

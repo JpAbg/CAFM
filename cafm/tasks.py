@@ -7,6 +7,7 @@ from cafm.notifications import (
     send_upcoming_preventive_reminders,
 )
 from cafm.preventive_maintenance import generate_preventive_work_orders
+from cafm.sla import notify_sla_breaches
 
 
 def daily():
@@ -27,4 +28,5 @@ def hourly():
     return {
         "overdue_work_orders": notify_overdue_work_orders(),
         "overdue_escalations": notify_overdue_escalations(),
+        "sla_breaches": notify_sla_breaches(),
     }

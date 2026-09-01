@@ -60,6 +60,7 @@ def setup_cafm():
     ensure_roles()
     ensure_issue_priorities()
     ensure_overdue_escalation_rules()
+    ensure_sla_policies()
     ensure_general_inspection_category()
     ensure_custom_fields()
     migrate_legacy_warranty_provider_links()
@@ -70,6 +71,7 @@ def setup_cafm():
     ensure_permissions()
     ensure_workflows()
     backfill_asset_locations()
+    backfill_work_order_slas()
     backfill_asset_qr_codes()
     backfill_asset_maintenance_history()
     cleanup_legacy_reason_fields()
@@ -162,6 +164,37 @@ def ensure_overdue_escalation_rules():
                 **rule,
             }
         ).insert(ignore_permissions=True)
+
+
+def ensure_sla_policies():
+    policies = (
+        ("Critical Work Order SLA", "Critical", 1, 4),
+        ("High Work Order SLA", "High", 4, 24),
+        ("Medium Work Order SLA", "Medium", 8, 72),
+        ("Low Work Order SLA", "Low", 24, 120),
+    )
+    for policy_name, priority, response_hours, resolution_hours in policies:
+        if frappe.db.exists("Facility SLA Policy", policy_name):
+            continue
+        frappe.get_doc(
+            {
+                "doctype": "Facility SLA Policy",
+                "policy_name": policy_name,
+                "is_active": 1,
+                "priority": priority,
+                "response_target_hours": response_hours,
+                "resolution_target_hours": resolution_hours,
+                "description": (
+                    "Default 24/7 SLA for {0}-priority work orders."
+                ).format(priority.lower()),
+            }
+        ).insert(ignore_permissions=True)
+
+
+def backfill_work_order_slas():
+    from cafm.sla import backfill_work_order_slas as backfill
+
+    backfill()
 
 
 def ensure_general_inspection_category():
@@ -736,6 +769,12 @@ def ensure_permissions():
         "Facility Asset Maintenance History": {
             "Facility Manager": {"read", "report", "export", "print"},
             "Facility Coordinator": {"read", "report", "export", "print"},
+        },
+        "Facility SLA Policy": {
+            "Facility Manager": {
+                "read", "write", "create", "delete", "report", "share",
+            },
+            "Facility Coordinator": {"read", "report"},
         },
         "Facility Service Contract": {
             "Facility Manager": {

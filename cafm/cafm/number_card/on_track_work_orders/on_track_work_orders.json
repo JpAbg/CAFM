@@ -1,0 +1,8 @@
+{
+ "aggregate_function_based_on": "", "color": "#35B779", "doctype": "Number Card",
+ "document_type": "Facility Work Order", "dynamic_filters_json": "[]", "filters_json": "[]",
+ "function": "Count", "is_public": 0, "is_standard": 1, "label": "On-Track Work Orders",
+ "method": "cafm.dashboard.get_on_track_work_orders", "module": "CAFM",
+ "name": "On-Track Work Orders", "parent_document_type": "", "report_function": "Sum",
+ "show_full_number": 1, "show_percentage_stats": 0, "stats_time_interval": "Daily", "type": "Custom"
+}

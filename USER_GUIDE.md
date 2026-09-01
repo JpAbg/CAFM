@@ -160,6 +160,12 @@ CAFM calculates the status automatically:
 
 Mark a work order as a warranty claim only when the Asset is within its valid warranty period.
 
+## SLA tracking
+
+Each Work Order automatically receives the best matching active **Facility SLA Policy** based on its priority and, when configured, its company or category. The Work Order shows the response due time, resolution due time, achieved times, and current SLA status.
+
+Response is recorded when the Work Order is assigned. Resolution is recorded when it is resolved or closed. CAFM measures the default policies using 24/7 elapsed hours and does not pause the timer while a Work Order is Pending. Facility Managers and Coordinators receive an alert when a response or resolution target is breached.
+
 ## Vendor quotations and service contracts
 
 Use **Facility Service Provider** for approved external vendors. Each provider is linked to its ERPNext Supplier, contact details, service categories, availability, and vendor user.
