@@ -55,6 +55,19 @@ QR codes respect normal Asset permissions. They do not grant access to users who
 
 > **Note:** A phone must be able to reach the CAFM site address. QR codes created on a localhost development site work only on that computer. Use an office-network or hosted URL before rolling out printed labels.
 
+## Employee facility portal
+
+Employees can submit and follow their own facility requests through the **Facility Portal** at /facility-portal.
+
+1. Open the portal while signed in with an Employee account.
+2. Select **Submit Request**.
+3. Enter the subject, facility location, request category, priority, and description.
+4. Submit the request.
+
+The **My Requests** list shows only requests submitted by that employee. A new request can be opened to review it, edited while it has not been converted into a work order, or withdrawn if it is no longer needed.
+
+Once a coordinator plans the request, its related work order and status remain visible to the employee. Resolved and closed requests remain in the portal history for 30 days. Rejected requests are hidden from the list.
+
 ## Maintenance requests
 
 A Maintenance Request starts as an **Issue** in Frappe.
@@ -89,6 +102,19 @@ The technician should:
 4. Complete the work when the job is finished.
 
 The dashboard and reports use this information for workload, response, cost, downtime, and overdue measurements.
+
+## Technician Mobile
+
+Technicians can use **Technician Mobile** at /app/technician-mobile for a focused view of their workload.
+
+- The page lists only work orders assigned to the signed-in technician.
+- Use the left panel to switch between all active work, Assigned, In Progress, Pending, Overdue, and Completed history.
+- Completed work stays available for the last 30 days.
+- Use the Task range, Priority, and Location filters to narrow the list.
+- Select a work-order card, or a notification item, to open the corresponding work order.
+- The bell shows assigned-work notifications. Opening the panel marks new notifications as read. Use **x** to dismiss an individual item or **Clear all** to clear the displayed list.
+
+Update the work order itself to record progress and completion. Technician Mobile is a faster entry point; it does not replace the work-order record.
 
 ## Escalated and overdue work
 
@@ -176,16 +202,27 @@ When a quotation has been received, open it and select **Actions - Select Quotat
 
 Use **Facility Service Contract** for longer agreements. Set the provider, dates, value, document, and coverage scope. A contract may cover all assets, one facility location, one asset, or one service category. The Work Order's **Vendor - View Matching Contracts** action identifies active contracts that apply to that job.
 
+## Utility monitoring
+
+Use utility monitoring to record meter usage, cost, demand, and environmental indicators.
+
+1. Create a **Utility Meter** for each electricity, water, natural-gas, fuel, or other meter.
+2. Set its company, site or building, supplier, unit, and cost per unit.
+3. Create the first **Utility Reading** and mark it as **Opening Reading**. This establishes the baseline and has no calculated consumption.
+4. Add later readings for the same meter. CAFM uses the previous reading to calculate consumption and estimated cost.
+5. Review the **Utility Consumption Report** and **Utility Consumption Dashboard**.
+
+The dashboard includes usage and cost trends, peak-demand indicators, carbon estimates, forecasts, anomalies, weather-normalized comparisons, and allocation views when relevant records exist. Use these as management indicators and investigate unusual readings before acting on them.
+
+For reliable results, record readings at consistent intervals and do not change the meter unit after readings have been entered.
+
 ## Dashboard and reports
 
-Use the **Facility Management Dashboard** for a quick operational view:
+Use the dashboards for a quick operational view:
 
-- Open requests and overdue work
-- Work orders by priority and category
-- Maintenance cost by site and building
-- Asset downtime and recurring failures
-- Preventive maintenance compliance and calendar
-- Escalation number cards
+- **Facility Management Dashboard:** requests, work orders, priorities, costs, overdue work, preventive maintenance, and escalations.
+- **SLA Performance Dashboard:** response and resolution performance, breached work, and SLA trends.
+- **Utility Consumption Dashboard:** meter reporting, consumption, cost, demand, forecast, carbon, and anomaly indicators.
 
 Use reports for detailed analysis:
 
@@ -196,6 +233,7 @@ Use reports for detailed analysis:
 - Technician Performance Report
 - Work Order Report
 - Preventive Maintenance Calendar
+- Utility Consumption Report
 
 Set report filters first, then refresh the report before exporting or sharing results.
 
@@ -206,6 +244,7 @@ Set report filters first, then refresh the report before exporting or sharing re
 - Set realistic planned start and end times.
 - Update work-order status as work changes.
 - Record material and labour accurately so costs and dashboards stay reliable.
+- Record utility readings consistently and mark only the first reading as Opening Reading.
 - Close or resolve completed work promptly.
 - Review overdue cards and preventive maintenance regularly.
 - Print QR labels only after CAFM is available from the devices that will scan them.
