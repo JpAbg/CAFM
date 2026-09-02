@@ -1,0 +1,57 @@
+{
+ "cards": [
+  {
+   "card": "Utility Meters Reported"
+  },
+  {
+   "card": "Monthly Estimated Utility Cost"
+  },
+  {
+   "card": "Utility Usage Change"
+  },
+  {
+   "card": "Forecast Utility Cost"
+  },
+  {
+   "card": "Monthly Carbon Estimate"
+  },
+  {
+   "card": "Peak Electricity Usage"
+  },
+  {
+   "card": "Peak Water Usage"
+  },
+  {
+   "card": "Peak Natural Gas Usage"
+  },
+  {
+   "card": "Peak Fuel Usage"
+  }
+ ],
+ "charts": [
+  {
+   "chart": "Monthly Utility Cost",
+   "width": "Full"
+  },
+  {
+   "chart": "Peak Demand Trend",
+   "width": "Half"
+  },
+  {
+   "chart": "Utility Forecast",
+   "width": "Half"
+  }
+ ],
+ "creation": "2026-09-02 11:45:46.150802",
+ "dashboard_name": "Utility Consumption Dashboard",
+ "docstatus": 0,
+ "doctype": "Dashboard",
+ "idx": 0,
+ "is_default": 0,
+ "is_standard": 1,
+ "modified": "2026-09-02 12:42:33.696331",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Utility Consumption Dashboard",
+ "owner": "Administrator"
+}

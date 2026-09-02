@@ -1,0 +1,41 @@
+{
+ "chart_name": "Monthly Utility Cost",
+ "chart_type": "Custom",
+ "color": "#29CD42",
+ "creation": "2026-09-02 10:36:36.652725",
+ "currency": "USD",
+ "custom_horizontal_bars": 0,
+ "custom_options": "{\"colors\":[\"#2E86DE\",\"#22B8CF\",\"#F59E0B\",\"#E65100\",\"#6B7280\"]}",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart",
+ "document_type": "",
+ "dynamic_filters_json": "[]",
+ "filters_json": "[]",
+ "group_by_type": "Sum",
+ "idx": 0,
+ "is_public": 0,
+ "is_standard": 1,
+ "modified": "2026-09-02 14:57:58.068710",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Monthly Utility Cost",
+ "number_of_groups": 0,
+ "owner": "Administrator",
+ "parent_document_type": "",
+ "roles": [
+  {
+   "role": "Facility Manager"
+  },
+  {
+   "role": "Facility Coordinator"
+  }
+ ],
+ "show_values_over_chart": 1,
+ "source": "Monthly Utility Cost",
+ "time_interval": "",
+ "timeseries": 0,
+ "timespan": "",
+ "type": "Bar",
+ "use_report_chart": 0,
+ "y_axis": []
+}
