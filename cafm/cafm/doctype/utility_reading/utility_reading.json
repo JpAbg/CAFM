@@ -1,0 +1,192 @@
+{
+ "actions": [],
+ "autoname": "format:UTIL-READ-{#####}",
+ "creation": "2026-09-02 12:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "reading_section",
+  "utility_meter",
+  "reading_date",
+  "reading_value",
+  "column_break_reading",
+  "company",
+  "utility_type",
+  "unit_of_measure",
+  "calculation_section",
+  "is_opening_reading",
+  "previous_reading",
+  "consumption",
+  "carbon_emissions",
+  "unit_rate",
+  "currency",
+  "cost",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "reading_section",
+   "fieldtype": "Section Break",
+   "label": "Meter Reading"
+  },
+  {
+   "fieldname": "utility_meter",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Utility Meter",
+   "options": "Utility Meter",
+   "reqd": 1
+  },
+  {
+   "default": "Today",
+   "fieldname": "reading_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Reading Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reading_value",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Meter Reading",
+   "non_negative": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_reading",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "utility_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Utility Type",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "unit_of_measure",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Unit of Measure",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "calculation_section",
+   "fieldtype": "Section Break",
+   "label": "Usage and Cost"
+  },
+  {
+   "default": "0",
+   "description": "The first reading is used as the starting meter value, so no consumption is calculated.",
+   "fieldname": "is_opening_reading",
+   "fieldtype": "Check",
+   "label": "Opening Reading",
+   "read_only": 1
+  },
+  {
+   "fieldname": "previous_reading",
+   "fieldtype": "Float",
+   "label": "Previous Reading",
+   "read_only": 1
+  },
+  {
+   "fieldname": "consumption",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Consumption",
+   "read_only": 1
+  },
+  {
+   "fieldname": "carbon_emissions",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Estimated Carbon (kg CO2e)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "unit_rate",
+   "fieldtype": "Currency",
+   "label": "Cost per Unit",
+   "non_negative": 1,
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "cost",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Estimated Cost",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-02 10:15:35.143734",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Utility Reading",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Facility Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Facility Coordinator",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "reading_date",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,38 @@
+{
+ "chart_name": "Utility Forecast",
+ "chart_type": "Custom",
+ "creation": "2026-09-02 12:31:06.155708",
+ "custom_horizontal_bars": 0,
+ "custom_options": "{\"colors\":[\"#2E86DE\",\"#22B8CF\",\"#F59E0B\",\"#E65100\",\"#6B7280\"]}",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart",
+ "document_type": "",
+ "dynamic_filters_json": "[]",
+ "filters_json": "[]",
+ "group_by_type": "Sum",
+ "idx": 0,
+ "is_public": 0,
+ "is_standard": 1,
+ "modified": "2026-09-02 12:33:03.164295",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Utility Forecast",
+ "number_of_groups": 0,
+ "owner": "Administrator",
+ "roles": [
+  {
+   "role": "Facility Manager"
+  },
+  {
+   "role": "Facility Coordinator"
+  }
+ ],
+ "show_values_over_chart": 0,
+ "source": "Utility Forecast",
+ "time_interval": "",
+ "timeseries": 0,
+ "timespan": "",
+ "type": "Line",
+ "use_report_chart": 0,
+ "y_axis": []
+}

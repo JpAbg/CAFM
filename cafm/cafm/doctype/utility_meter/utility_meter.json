@@ -1,0 +1,195 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:meter_name",
+ "creation": "2026-09-02 12:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "meter_section",
+  "meter_name",
+  "is_active",
+  "utility_type",
+  "unit_of_measure",
+  "meter_identifier",
+  "company",
+  "location_section",
+  "site",
+  "building",
+  "facility_location",
+  "billing_section",
+  "currency",
+  "default_rate",
+  "supplier",
+  "account_number",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "meter_section",
+   "fieldtype": "Section Break",
+   "label": "Meter Details"
+  },
+  {
+   "fieldname": "meter_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Meter Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "utility_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Utility Type",
+   "options": "Electricity\nWater\nNatural Gas\nFuel\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "unit_of_measure",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Unit of Measure",
+   "options": "kWh\nm3\nLitres\nGallons\nGJ\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "meter_identifier",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Meter / Serial Number"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "in_list_view": 1,
+   "label": "Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "location_section",
+   "fieldtype": "Section Break",
+   "label": "Coverage Location"
+  },
+  {
+   "fieldname": "site",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Site",
+   "options": "Site",
+   "reqd": 1
+  },
+  {
+   "fieldname": "building",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Building",
+   "options": "Building"
+  },
+  {
+   "fieldname": "facility_location",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Facility Location",
+   "options": "Facility Location"
+  },
+  {
+   "fieldname": "billing_section",
+   "fieldtype": "Section Break",
+   "label": "Billing Details"
+  },
+  {
+   "default": "USD",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "description": "Used for readings unless a different rate is entered.",
+   "fieldname": "default_rate",
+   "fieldtype": "Currency",
+   "label": "Default Cost per Unit",
+   "non_negative": 1,
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "label": "Utility Supplier",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "account_number",
+   "fieldtype": "Data",
+   "label": "Utility Account Number"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "links": [
+  {
+   "link_doctype": "Utility Reading",
+   "link_fieldname": "utility_meter"
+  }
+ ],
+ "modified": "2026-09-02 10:13:17.454424",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Utility Meter",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Facility Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Facility Coordinator",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
