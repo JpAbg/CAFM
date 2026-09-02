@@ -321,4 +321,4 @@ scheduler_events = {
 }
 
 
-doc_events = {"Utility Reading": {"validate": "cafm.utilities.apply_carbon_emissions"}}
+doc_events["Utility Reading"] = {"validate": "cafm.utilities.apply_carbon_emissions"}
