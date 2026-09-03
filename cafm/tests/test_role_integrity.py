@@ -97,8 +97,8 @@ class TestRoleIntegrity(FrappeTestCase):
             self.skipTest("CAFM demo requester is not installed on this site.")
 
         user = frappe.get_doc("User", user_id)
-        user.role_profile_name = "Axiom - Accounting"
-        user.set("roles", [{"role": "Axiom Accountant"}])
+        user.role_profile_name = "Unrelated Accounting"
+        user.set("roles", [{"role": "Unrelated Accountant"}])
 
         enforce_cafm_demo_user_roles(user)
 
