@@ -1,6 +1,6 @@
-# CAFM
+# CAFM — Computer-Aided Facility Management
 
-Computer-Aided Facility Management application built on Frappe, ERPNext, and HRMS.
+A facility-management application built on Frappe, ERPNext, and HRMS for managing facilities, assets, maintenance operations, employees, and operational workflows.
 
 For everyday operational use, see the [CAFM User Guide](USER_GUIDE.md).
 
