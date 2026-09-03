@@ -71,14 +71,6 @@ def create_employee_user_account(doc, method=None):
         # Test runs must not attempt to send mail to generated fixture emails.
         user.flags.no_welcome_mail = bool(frappe.flags.in_test)
 
-        # Dev/test convenience only: derive a known password from the
-        # employee's name so we can log in without the welcome email.
-        # Never runs in production — guessable passwords are unsafe there.
-        if frappe.flags.in_test or frappe.conf.get("developer_mode"):
-            first = frappe.scrub(doc.get("first_name") or "")
-            last = frappe.scrub(doc.get("last_name") or "")
-            user.new_password = "{0}_{1}".format(first, last) if last else first
-
         user.insert()
 
     doc.user_id = user.name
