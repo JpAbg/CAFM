@@ -19,4 +19,4 @@ Do not treat this frontend as a separate deployable application. It is packaged 
 
 ## Required backend apps
 
-The CAFM app requires Frappe version 15, ERPNext version 15, and HRMS version 15. It does not require Axiom Modules or any company-specific app.
+The CAFM app requires Frappe version 15, ERPNext version 15, and HRMS version 15.
