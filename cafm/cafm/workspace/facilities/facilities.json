@@ -1,0 +1,202 @@
+{
+ "charts": [],
+ "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Facilities</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Facility Location\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Asset\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Request\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Work Orders\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Preventive Maintenance\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Utility Meters\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Maintenance and analysis</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Maintenance\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Preventive Maintenance\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Utilities\",\"col\":4}}]",
+ "custom_blocks": [],
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "tool",
+ "is_hidden": 0,
+ "label": "Facilities",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Maintenance",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Facility Locations",
+   "link_count": 0,
+   "link_to": "Facility Location",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Maintenance Requests",
+   "link_count": 0,
+   "link_to": "Issue",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Facility Work Orders",
+   "link_count": 0,
+   "link_to": "Facility Work Order",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Facility Inspection",
+   "link_count": 0,
+   "link_to": "Facility Inspection",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Maintenance Teams",
+   "link_count": 0,
+   "link_to": "Asset Maintenance Team",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Preventive Maintenance",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Preventive Maintenance Plans",
+   "link_count": 0,
+   "link_to": "Preventive Maintenance Plan",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Preventive Maintenance Calendar",
+   "link_count": 0,
+   "link_to": "Preventive Maintenance Calendar",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Utilities",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Utility Meters",
+   "link_count": 0,
+   "link_to": "Utility Meter",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Utility Readings",
+   "link_count": 0,
+   "link_to": "Utility Reading",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Utility Consumption Report",
+   "link_count": 0,
+   "link_to": "Utility Consumption Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "module": "CAFM",
+ "name": "Facilities",
+ "number_cards": [],
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [
+  {
+   "role": "Facility Manager"
+  },
+  {
+   "role": "Facility Coordinator"
+  },
+  {
+   "role": "Technician"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 25.0,
+ "shortcuts": [
+  {
+   "label": "Facility Location",
+   "link_to": "Facility Location",
+   "type": "DocType"
+  },
+  {
+   "label": "Asset",
+   "link_to": "Asset",
+   "type": "DocType"
+  },
+  {
+   "label": "Maintenance Request",
+   "link_to": "Issue",
+   "type": "DocType"
+  },
+  {
+   "label": "Work Orders",
+   "link_to": "Facility Work Order",
+   "type": "DocType"
+  },
+  {
+   "label": "Preventive Maintenance",
+   "link_to": "Preventive Maintenance Plan",
+   "type": "DocType"
+  },
+  {
+   "label": "Utility Meters",
+   "link_to": "Utility Meter",
+   "type": "DocType"
+  }
+ ],
+ "title": "Facilities"
+}
