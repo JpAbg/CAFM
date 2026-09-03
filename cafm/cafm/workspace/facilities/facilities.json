@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Facilities</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Facility Location\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Asset\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Request\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Work Orders\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Preventive Maintenance\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Utility Meters\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Maintenance and analysis</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Maintenance\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Preventive Maintenance\",\"col\":4}},{\"type\":\"card\",\"data\":{\"card_name\":\"Utilities\",\"col\":4}}]",
+ "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Facilities</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Facility Location\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Asset\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Request\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Work Orders\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Preventive Maintenance\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Facility Inspection\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Inspection Templates\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Teams\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Providers\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Contracts\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"SLA Policies\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Utility Meters\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Manage and analyse</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Maintenance\",\"col\":3}},{\"type\":\"card\",\"data\":{\"card_name\":\"Preventive Maintenance\",\"col\":3}},{\"type\":\"card\",\"data\":{\"card_name\":\"Vendors and SLA\",\"col\":3}},{\"type\":\"card\",\"data\":{\"card_name\":\"Utilities and Reports\",\"col\":3}}]",
  "custom_blocks": [],
  "doctype": "Workspace",
  "for_user": "",
@@ -65,6 +65,17 @@
    "dependencies": "",
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Inspection Templates",
+   "link_count": 0,
+   "link_to": "Facility Inspection Template",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Maintenance Teams",
    "link_count": 0,
    "link_to": "Asset Maintenance Team",
@@ -105,7 +116,81 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Utilities",
+   "label": "Vendors and SLA",
+   "link_count": 0,
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Service Providers",
+   "link_count": 0,
+   "link_to": "Facility Service Provider",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Service Contracts",
+   "link_count": 0,
+   "link_to": "Facility Service Contract",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Vendor Quotations",
+   "link_count": 0,
+   "link_to": "Facility Vendor Quotation",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "SLA Policies",
+   "link_count": 0,
+   "link_to": "Facility SLA Policy",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Overdue Escalation Rules",
+   "link_count": 0,
+   "link_to": "Facility Overdue Escalation Rule",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "SLA Performance",
+   "link_count": 0,
+   "link_to": "SLA Performance",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Utilities and Reports",
    "link_count": 0,
    "onboard": 0,
    "type": "Card Break"
@@ -135,10 +220,54 @@
   {
    "dependencies": "",
    "hidden": 0,
+   "is_query_report": 0,
+   "label": "Utility Bills",
+   "link_count": 0,
+   "link_to": "Utility Bill",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
    "is_query_report": 1,
    "label": "Utility Consumption Report",
    "link_count": 0,
    "link_to": "Utility Consumption Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Work Order Report",
+   "link_count": 0,
+   "link_to": "Work Order Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Maintenance Cost Report",
+   "link_count": 0,
+   "link_to": "Maintenance Cost Report",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Technician Performance Report",
+   "link_count": 0,
+   "link_to": "Technician Performance Report",
    "link_type": "Report",
    "onboard": 0,
    "type": "Link"
@@ -190,6 +319,36 @@
   {
    "label": "Preventive Maintenance",
    "link_to": "Preventive Maintenance Plan",
+   "type": "DocType"
+  },
+  {
+   "label": "Facility Inspection",
+   "link_to": "Facility Inspection",
+   "type": "DocType"
+  },
+  {
+   "label": "Inspection Templates",
+   "link_to": "Facility Inspection Template",
+   "type": "DocType"
+  },
+  {
+   "label": "Maintenance Teams",
+   "link_to": "Asset Maintenance Team",
+   "type": "DocType"
+  },
+  {
+   "label": "Service Providers",
+   "link_to": "Facility Service Provider",
+   "type": "DocType"
+  },
+  {
+   "label": "Service Contracts",
+   "link_to": "Facility Service Contract",
+   "type": "DocType"
+  },
+  {
+   "label": "SLA Policies",
+   "link_to": "Facility SLA Policy",
    "type": "DocType"
   },
   {
