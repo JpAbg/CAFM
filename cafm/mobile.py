@@ -9,8 +9,9 @@ ALLOWED_VIEWS = ("active", "assigned", "in_progress", "pending", "overdue", "com
 
 @frappe.whitelist()
 def get_my_work_orders(view="active", priority=None, facility_location=None):
-    user_full_name = frappe.db.get_value("User", frappe.session.user, "full_name") or frappe.session.user
     """Return the logged-in technician's work orders for the mobile workspace."""
+    user = frappe.db.get_value("User", frappe.session.user, ["first_name", "last_name"], as_dict=True)
+    user_full_name = " ".join(filter(None, [user.first_name, user.last_name])) if user else frappe.session.user
     employee = frappe.db.get_value(
         "Employee", {"user_id": frappe.session.user, "status": "Active"}, "name"
     )

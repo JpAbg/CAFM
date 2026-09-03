@@ -22,6 +22,14 @@ Use the search bar to find an Asset, Facility Location, Maintenance Request, or 
 
 If an action is not available, ask the Facility Manager to check your role and permissions.
 
+## Employee login accounts
+
+When an active Employee is saved with a Company Email, CAFM automatically creates and links a login account. If no Company Email is available, it uses Personal Email instead.
+
+The employee receives Frappe's standard invitation email and chooses their own password. CAFM never assigns a shared default password.
+
+New employee accounts receive the **Employee** and **Requester / Employee** roles after the Employee record is saved. An employee marked as a Facility Technician also receives the **Technician** role. CAFM creates a unique username from the employee name when needed. If email is not configured on the site, a Facility Manager can use the standard password-reset action on the User record after email delivery is configured.
+
 ## Facility locations
 
 Create the facility structure before registering assets:

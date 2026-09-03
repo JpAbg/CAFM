@@ -273,8 +273,13 @@ doc_events = {
         "validate": "cafm.events.asset_maintenance_team.validate_member_roles",
     },
     "Employee": {
+        "before_validate": "cafm.events.employee.create_employee_user_account",
         "validate": "cafm.events.employee.validate_cafm_employee",
-        "on_update": "cafm.events.employee.update_cafm_employee_availability",
+        "on_update": [
+            "cafm.events.employee.ensure_employee_user_roles",
+            "cafm.events.employee.update_cafm_employee_availability",
+            "cafm.events.employee.sync_employee_user_name",
+        ],
     },
     "User": {
         "validate": "cafm.events.user.enforce_cafm_demo_user_roles",
