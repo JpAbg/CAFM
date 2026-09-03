@@ -23,8 +23,6 @@ CAFM currently targets the version 15 release line. The clean-site installation 
 
 ERPNext and HRMS are required apps and must be installed on the site before CAFM.
 
-> **Axiom note:** CAFM does not require Axiom Modules or any other company-specific app. Do not add them to a clean CAFM installation unless your own environment separately requires them.
-
 ## Clean-site installation
 
 Start from a working Frappe Bench with MariaDB, Redis, Node.js, Yarn, and Bench installed.
