@@ -6,7 +6,7 @@ For installation, updates, and technical requirements, see [README.md](README.md
 
 ## Start here
 
-Open the **CAFM** workspace from the Desk. The **Facility Management Dashboard** shows maintenance requests, work orders, priorities, costs, overdue work, and preventive maintenance.
+Open **Facilities** from the Desk sidebar. This CAFM workspace provides shortcuts to locations, assets, requests, work orders, preventive maintenance, utilities, and reports. The **Facility Management Dashboard** shows maintenance requests, work orders, priorities, costs, overdue work, and preventive maintenance.
 
 Use the search bar to find an Asset, Facility Location, Maintenance Request, or Facility Work Order by name.
 
