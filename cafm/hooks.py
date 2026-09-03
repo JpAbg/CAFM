@@ -278,6 +278,7 @@ doc_events = {
         "on_update": [
             "cafm.events.employee.ensure_employee_user_roles",
             "cafm.events.employee.update_cafm_employee_availability",
+            "cafm.events.employee.sync_employee_user_name",
         ],
     },
     "User": {
