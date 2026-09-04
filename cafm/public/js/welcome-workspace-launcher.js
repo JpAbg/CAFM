@@ -7,8 +7,11 @@
       || page_path.endsWith("/app/welcome-workspace");
     if (!is_welcome_workspace) return;
 
+    remove_hi_message();
+
     const roles = frappe.user_roles || [];
-    if (manager_roles.some(function (role) { return roles.includes(role); })) return;
+    const is_manager = manager_roles.some(function (role) { return roles.includes(role); });
+    if (is_manager) return;
 
     let launchers = [];
 
@@ -33,11 +36,6 @@
           action: function () { window.location.assign("/facility-portal"); }
         }
       ];
-    } else {
-      $(".layout-main-section *").filter(function () {
-        const text = $(this).text().trim();
-        return text === "Hi," || text.indexOf("I guess you don't have access to any workspace yet") === 0;
-      }).remove();
     }
 
     if (!launchers.length || document.getElementById("cafm-welcome-launcher")) return;
