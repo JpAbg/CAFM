@@ -1,6 +1,21 @@
 (function () {
   const manager_roles = ["Administrator", "System Manager", "Facility Manager", "Facility Coordinator"];
 
+  function remove_hi_message() {
+    $(".layout-main-section *").filter(function () {
+      const text = $(this).text().trim();
+      return text === "Hi," || text.indexOf("I guess you don't have access to any workspace yet") === 0;
+    }).remove();
+  }
+
+  function remove_empty_paragraph_blocks() {
+    $(".ce-paragraph.cdx-block.widget").each(function () {
+      if ($(this).text().trim() === "") {
+        $(this).remove();
+      }
+    });
+  }
+
   function add_launcher() {
     const page_path = decodeURIComponent(window.location.pathname).toLowerCase();
     const is_welcome_workspace = page_path.endsWith("/app/workspaces/welcome workspace")
@@ -8,6 +23,7 @@
     if (!is_welcome_workspace) return;
 
     remove_hi_message();
+    remove_empty_paragraph_blocks();
 
     const roles = frappe.user_roles || [];
     const is_manager = manager_roles.some(function (role) { return roles.includes(role); });
