@@ -68,14 +68,14 @@ doctype_js = {
 # ----------
 
 # application home page (will override Website Settings)
-home_page = "welcome-workspace"
+#home_page = "welcome-workspace"
 
-role_home_page = {
-    "Administrator": "home",
-    "System Manager": "home",
-    "Facility Manager": "home",
-    "Facility Coordinator": "home"
-}
+#role_home_page = {
+#    "Administrator": "home",
+#    "System Manager": "home",
+#    "Facility Manager": "home",
+#    "Facility Coordinator": "home"
+#}
 
 # Generators
 # ----------
