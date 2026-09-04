@@ -22,6 +22,10 @@ class FacilityVendorQuotation(Document):
         self.validate_provider()
         self.validate_contract()
 
+        from cafm.permissions import validate_vendor_quotation_changes
+
+        validate_vendor_quotation_changes(self)
+
     def populate_from_work_order(self):
         if not self.work_order:
             return
@@ -58,6 +62,10 @@ class FacilityVendorQuotation(Document):
 
 @frappe.whitelist()
 def select_vendor_quotation(quotation_name, selection_notes=None):
+    allowed_roles = {"Facility Manager", "System Manager"}
+    if not allowed_roles.intersection(frappe.get_roles()):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
     quotation = frappe.get_doc("Facility Vendor Quotation", quotation_name)
     if not frappe.has_permission("Facility Vendor Quotation", "write", quotation_name):
         frappe.throw(_("Not permitted"), frappe.PermissionError)

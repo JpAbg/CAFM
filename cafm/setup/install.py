@@ -731,37 +731,37 @@ def ensure_permissions():
         },
         "Site": {
             "Facility Manager": {"read", "write", "create", "delete", "report"},
-            "Facility Coordinator": {"read", "write", "create", "report"},
+            "Facility Coordinator": {"read", "report"},
         },
         "Building": {
             "Facility Manager": {"read", "write", "create", "delete", "report"},
-            "Facility Coordinator": {"read", "write", "create", "report"},
+            "Facility Coordinator": {"read", "report"},
         },
         "Floor": {
             "Facility Manager": {"read", "write", "create", "delete", "report"},
-            "Facility Coordinator": {"read", "write", "create", "report"},
+            "Facility Coordinator": {"read", "report"},
         },
         "Room": {
             "Facility Manager": {"read", "write", "create", "delete", "report"},
-            "Facility Coordinator": {"read", "write", "create", "report"},
+            "Facility Coordinator": {"read", "report"},
         },
         "Facility Location": {
             "Facility Manager": {"read", "write", "create", "delete", "report"},
-            "Facility Coordinator": {"read", "write", "create", "report"},
+            "Facility Coordinator": {"read", "report"},
             "Requester / Employee": {"read"},
             "Technician": {"read"},
             "Vendor": {"read"},
         },
         "Asset": {
             "Facility Manager": {"read", "write", "create", "report"},
-            "Facility Coordinator": {"read", "write", "create", "report"},
+            "Facility Coordinator": {"read", "report"},
             "Requester / Employee": {"read"},
             "Technician": {"read"},
             "Vendor": {"read"},
         },
         "Asset Category": {
             "Facility Manager": {"read", "write", "create", "delete", "report"},
-            "Facility Coordinator": {"read", "write", "create", "report"},
+            "Facility Coordinator": {"read", "report"},
             "Requester / Employee": {"read"},
             "Technician": {"read"},
             "Vendor": {"read"},
@@ -780,17 +780,15 @@ def ensure_permissions():
             "Facility Manager": {
                 "read", "write", "create", "delete", "report", "share",
             },
-            "Facility Coordinator": {
-                "read", "write", "create", "report", "share",
-            },
+            "Facility Coordinator": set(),
+            "Vendor": {"read", "print"},
         },
         "Facility Vendor Quotation": {
             "Facility Manager": {
                 "read", "write", "create", "delete", "report", "share",
             },
-            "Facility Coordinator": {
-                "read", "write", "create", "report", "share",
-            },
+            "Facility Coordinator": set(),
+            "Vendor": {"read", "write", "print"},
         },
         "Facility Service Provider": {
             "Facility Manager": {
@@ -801,22 +799,25 @@ def ensure_permissions():
                 "report",
                 "share",
             },
-            "Facility Coordinator": {
-                "read",
-                "write",
-                "create",
-                "report",
-                "share",
-            },
+            "Facility Coordinator": set(),
             "Vendor": {"read"},
         },
+        # Coordinators run maintenance operations but do not manage utility
+        # data, costs, or utility planning. Empty rights revoke access from
+        # sites that used an earlier, broader permission set.
+        "Utility Meter": {"Facility Coordinator": set()},
+        "Utility Reading": {"Facility Coordinator": set()},
+        "Utility Demand Reading": {"Facility Coordinator": set()},
+        "Utility Bill": {"Facility Coordinator": set()},
+        "Utility Budget": {"Facility Coordinator": set()},
+        "Utility Usage Target": {"Facility Coordinator": set()},
+        "Utility Weather Observation": {"Facility Coordinator": set()},
+        "Utility Allocation": {"Facility Coordinator": set()},
         "Facility Inspection Template": {
             "Facility Manager": {
                 "read", "write", "create", "delete", "report", "share"
             },
-            "Facility Coordinator": {
-                "read", "write", "create", "report", "share"
-            },
+            "Facility Coordinator": {"read", "report"},
             "Technician": {"read"},
         },
         "Facility Inspection Schedule": {

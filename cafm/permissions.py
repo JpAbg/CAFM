@@ -178,6 +178,127 @@ def has_service_provider_permission(
     )
 
 
+def vendor_quotation_query(user=None):
+    user = user or frappe.session.user
+    roles = set(frappe.get_roles(user))
+    if roles & PRIVILEGED_ROLES:
+        return ""
+    if "Vendor" not in roles:
+        return "1=0"
+
+    provider = get_provider_for_user(user)
+    if not provider:
+        return "1=0"
+    tick = chr(96)
+    return (
+        f"{tick}tabFacility Vendor Quotation{tick}."
+        f"{tick}service_provider{tick} = {frappe.db.escape(provider)}"
+    )
+
+
+def has_vendor_quotation_permission(
+    doc,
+    user=None,
+    ptype=None,
+    debug=False,
+):
+    user = user or frappe.session.user
+    roles = set(frappe.get_roles(user))
+    if roles & PRIVILEGED_ROLES:
+        return True
+
+    provider = get_provider_for_user(user)
+    return (
+        "Vendor" in roles
+        and provider == doc.service_provider
+        and ptype in ("read", "write")
+    )
+
+
+def service_contract_query(user=None):
+    user = user or frappe.session.user
+    roles = set(frappe.get_roles(user))
+    if roles & PRIVILEGED_ROLES:
+        return ""
+    if "Vendor" not in roles:
+        return "1=0"
+
+    provider = get_provider_for_user(user)
+    if not provider:
+        return "1=0"
+    tick = chr(96)
+    return (
+        f"{tick}tabFacility Service Contract{tick}."
+        f"{tick}service_provider{tick} = {frappe.db.escape(provider)}"
+    )
+
+
+def has_service_contract_permission(
+    doc,
+    user=None,
+    ptype=None,
+    debug=False,
+):
+    user = user or frappe.session.user
+    roles = set(frappe.get_roles(user))
+    if roles & PRIVILEGED_ROLES:
+        return True
+
+    provider = get_provider_for_user(user)
+    return (
+        "Vendor" in roles
+        and provider == doc.service_provider
+        and ptype == "read"
+    )
+
+
+VENDOR_LOCKED_QUOTATION_FIELDS = (
+    "quotation_name",
+    "work_order",
+    "service_provider",
+    "company",
+    "service_contract",
+    "total_amount",
+    "selected_by",
+    "selected_on",
+    "selection_notes",
+)
+
+
+def validate_vendor_quotation_changes(quotation):
+    roles = set(frappe.get_roles())
+    if "Vendor" not in roles or roles & PRIVILEGED_ROLES:
+        return
+
+    provider = get_provider_for_user(frappe.session.user)
+    if not provider or quotation.service_provider != provider:
+        frappe.throw(
+            "You can only update quotations sent to your Service Provider.",
+            frappe.PermissionError,
+        )
+
+    if quotation.is_new():
+        frappe.throw(
+            "Vendors cannot create quotations.",
+            frappe.PermissionError,
+        )
+
+    if quotation.quotation_status not in ("Draft", "Received"):
+        frappe.throw(
+            "Vendors cannot change quotation selection or expiry status.",
+            frappe.PermissionError,
+        )
+
+    for fieldname in VENDOR_LOCKED_QUOTATION_FIELDS:
+        if quotation.has_value_changed(fieldname):
+            frappe.throw(
+                "Vendors cannot change the quotation field {0}.".format(
+                    quotation.meta.get_label(fieldname)
+                ),
+                frappe.PermissionError,
+            )
+
+
 VENDOR_LOCKED_WORK_ORDER_FIELDS = (
     "work_order_type",
     "maintenance_request",

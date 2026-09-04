@@ -22,9 +22,6 @@
  "roles": [
   {
    "role": "Facility Manager"
-  },
-  {
-   "role": "Facility Coordinator"
   }
  ],
  "show_values_over_chart": 0,
