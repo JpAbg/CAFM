@@ -308,6 +308,8 @@ permission_query_conditions = {
     "Facility Work Order": "cafm.permissions.work_order_query",
     "Facility Inspection": "cafm.permissions.inspection_query",
     "Facility Service Provider": "cafm.permissions.service_provider_query",
+    "Facility Vendor Quotation": "cafm.permissions.vendor_quotation_query",
+    "Facility Service Contract": "cafm.permissions.service_contract_query",
 }
 
 has_permission = {
@@ -316,6 +318,12 @@ has_permission = {
     "Facility Inspection": "cafm.permissions.has_inspection_permission",
     "Facility Service Provider": (
         "cafm.permissions.has_service_provider_permission"
+    ),
+    "Facility Vendor Quotation": (
+        "cafm.permissions.has_vendor_quotation_permission"
+    ),
+    "Facility Service Contract": (
+        "cafm.permissions.has_service_contract_permission"
     ),
 }
 

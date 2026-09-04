@@ -196,7 +196,7 @@ def get_sla_met_work_orders(filters=None):
 
 
 
-UTILITY_DASHBOARD_ROLES = ("Facility Manager", "Facility Coordinator")
+UTILITY_DASHBOARD_ROLES = ("Facility Manager",)
 
 
 def _require_utility_dashboard_access():
@@ -289,38 +289,48 @@ def get_utility_usage_change(filters=None):
 
 @frappe.whitelist()
 def get_peak_demand(filters=None):
-    value = frappe.db.get_value("Utility Demand Reading", {}, "max(demand_value)") or 0
-    return {"value": value, "fieldtype": "Float", "route": ["List","Utility Demand Reading"], "message": _("Highest recorded demand in kW.")}
-
-
-@frappe.whitelist()
-def get_peak_demand(filters=None):
-    value = frappe.db.get_value("Utility Demand Reading", {}, "max(demand_value)") or 0
-    return {"value": "{0:g} kW".format(value), "fieldtype": "Data", "route": ["List", "Utility Demand Reading"], "message": _("Highest recorded demand.")}
+    _require_utility_dashboard_access()
+    value = (
+        frappe.db.get_value(
+            "Utility Demand Reading", {}, "max(demand_value)"
+        )
+        or 0
+    )
+    return {
+        "value": "{0:g} kW".format(value),
+        "fieldtype": "Data",
+        "route": ["List", "Utility Demand Reading"],
+        "message": _("Highest recorded demand."),
+    }
 
 
 @frappe.whitelist()
 def get_monthly_carbon(filters=None):
-    value = frappe.db.get_value("Utility Reading", {}, "sum(carbon_emissions)") or 0
-    return {"value": str(round(value, 1)) + " kg CO2e", "fieldtype": "Data", "route": ["List", "Utility Reading"]}
+    _require_utility_dashboard_access()
+    value = (
+        frappe.db.get_value(
+            "Utility Reading", {}, "sum(carbon_emissions)"
+        )
+        or 0
+    )
+    return {
+        "value": "{0:g} kg CO2e".format(value),
+        "fieldtype": "Data",
+        "route": ["List", "Utility Reading"],
+    }
+
 
 @frappe.whitelist()
 def get_forecast_cost(filters=None):
-    forecast = get_utility_forecast()
-    return {"value": "$" + str(round(forecast["forecast_cost"], 2)), "fieldtype": "Data", "route": ["List", "Utility Reading"]}
-
-
-@frappe.whitelist()
-def get_forecast_cost(filters=None):
+    _require_utility_dashboard_access()
     from cafm.utilities import get_utility_forecast
-    forecast = get_utility_forecast()
-    return {"value": "$" + str(round(forecast["forecast_cost"], 2)), "fieldtype": "Data", "route": ["List", "Utility Reading"]}
 
-
-@frappe.whitelist()
-def get_forecast_cost(filters=None):
-    from cafm.utilities import get_utility_forecast
-    return {"value": get_utility_forecast()["forecast_cost"], "fieldtype": "Currency", "currency": "USD", "route": ["List", "Utility Reading"]}
+    return {
+        "value": get_utility_forecast()["forecast_cost"],
+        "fieldtype": "Currency",
+        "currency": "USD",
+        "route": ["List", "Utility Reading"],
+    }
 
 
 def _get_peak_usage(utility_type, unit):

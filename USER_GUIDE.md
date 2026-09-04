@@ -14,13 +14,25 @@ Use the search bar to find an Asset, Facility Location, Maintenance Request, or 
 
 | Role | Main responsibility |
 | --- | --- |
-| Facility Manager | Oversees maintenance, teams, suppliers, costs, and escalations. |
-| Facility Coordinator | Receives requests, plans work, assigns technicians, and follows up. |
+| Facility Manager | Full CAFM oversight: facility setup, assets, teams, suppliers, contracts, SLAs, utilities, costs, escalations, and reports. |
+| Facility Coordinator | Runs daily maintenance operations: requests, work orders, technician assignments, preventive maintenance, inspections, and operational SLA follow-up. |
 | Technician | Views assigned work and records progress, time, materials, and resolutions. |
 | Requester / Employee | Raises maintenance requests and follows their own requests. |
-| Vendor | Works with assigned external service work and provider information. |
+| Vendor | Views its own provider profile and contract, completes its own quotations, and updates only externally assigned work orders. |
+
+**Assigning Manager and Coordinator roles:** Open the person's **User** record, add **Facility Manager** or **Facility Coordinator** in the Roles table, then save. These supervisory roles are intentionally assigned manually; ordinary new Employee accounts only receive Employee and Requester / Employee, plus Technician when applicable.
+
+A Facility Coordinator can work on maintenance operations but cannot configure sites, buildings, rooms, assets, vendors, quotations, service contracts, utility records, utility dashboards, or maintenance-cost reports. A Facility Manager has access to those management functions.
 
 If an action is not available, ask the Facility Manager to check your role and permissions.
+
+### Setting up a vendor account
+
+1. Create a normal **System User** for the supplier contact.
+2. Add only the **Vendor** role on that User record.
+3. On the matching **Facility Service Provider**, set **Vendor User** to that User.
+
+The vendor can then view only that provider's contracts and quotations, and externally assigned work orders for that provider. They cannot create work orders, select quotations, reassign work, edit internal work details, or access utility and cost records.
 
 ## Employee login accounts
 
