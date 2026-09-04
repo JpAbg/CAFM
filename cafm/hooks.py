@@ -68,12 +68,14 @@ doctype_js = {
 # ----------
 
 # application home page (will override Website Settings)
-# home_page = "login"
+home_page = "welcome-workspace"
 
-# website user home page (by Role)
-# role_home_page = {
-# 	"Role": "home_page"
-# }
+role_home_page = {
+    "Administrator": "home",
+    "System Manager": "home",
+    "Facility Manager": "home",
+    "Facility Coordinator": "home"
+}
 
 # Generators
 # ----------
@@ -185,9 +187,10 @@ doctype_js = {
 # Overriding Methods
 # ------------------------------
 #
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "cafm.event.get_events"
-# }
+override_whitelisted_methods = {
+    "frappe.desk.desktop.get_desktop_page": "cafm.overrides.get_desktop_page",
+    "frappe.desk.desktop.get_workspace_sidebar_items": "cafm.overrides.get_workspace_sidebar_items"
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
