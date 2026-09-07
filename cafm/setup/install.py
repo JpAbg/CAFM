@@ -58,11 +58,15 @@ def after_migrate():
 
 def setup_cafm():
     ensure_roles()
+    ensure_cafm_role_profiles()
+    ensure_facilities_workspace_visibility()
+    ensure_normal_cafm_user_default_workspaces()
     ensure_issue_priorities()
     ensure_overdue_escalation_rules()
     ensure_sla_policies()
     ensure_general_inspection_category()
     ensure_custom_fields()
+    ensure_cafm_user_role_profiles()
     migrate_legacy_warranty_provider_links()
     ensure_asset_location_customization()
     ensure_asset_maintenance_team_customization()
@@ -108,6 +112,126 @@ def ensure_roles():
                     "desk_access": 1,
                 }
             ).insert(ignore_permissions=True)
+
+
+def ensure_cafm_role_profiles():
+    """Create the CAFM role profiles used for all CAFM account types."""
+    profiles = {
+        "CAFM Facility Manager": (
+            "Employee",
+            "Requester / Employee",
+            "Facility Manager",
+        ),
+        "CAFM Facility Coordinator": (
+            "Employee",
+            "Requester / Employee",
+            "Facility Coordinator",
+        ),
+        "CAFM Technician": (
+            "Employee",
+            "Requester / Employee",
+            "Technician",
+        ),
+        "CAFM Employee": ("Employee", "Requester / Employee"),
+        "CAFM Vendor": ("Vendor",),
+    }
+
+    for profile_name, roles in profiles.items():
+        if frappe.db.exists("Role Profile", profile_name):
+            profile = frappe.get_doc("Role Profile", profile_name)
+        else:
+            profile = frappe.new_doc("Role Profile")
+            profile.role_profile = profile_name
+
+        if {row.role for row in profile.roles} == set(roles):
+            continue
+
+        profile.set("roles", [])
+        for role in roles:
+            profile.append("roles", {"role": role})
+        profile.save(ignore_permissions=True)
+
+
+def ensure_facilities_workspace_visibility():
+    """Keep the role-restricted Facilities workspace available in Desk."""
+    if not frappe.db.exists("Workspace", "Facilities"):
+        return
+
+    frappe.db.set_value(
+        "Workspace",
+        "Facilities",
+        {
+            "public": 1,
+            "is_hidden": 0,
+        },
+        update_modified=False,
+    )
+
+
+def ensure_cafm_user_role_profiles():
+    """Replace the unrelated Axiom profile for existing CAFM accounts."""
+    from cafm.events.user import apply_cafm_role_profile
+
+    users = frappe.get_all(
+        "User",
+        filters={"enabled": 1, "user_type": "System User"},
+        pluck="name",
+    )
+    for user_name in users:
+        user = frappe.get_doc("User", user_name)
+        before = (
+            user.role_profile_name,
+            user.module_profile,
+            tuple(sorted(row.role for row in user.roles)),
+            tuple(sorted(row.module for row in user.block_modules)),
+        )
+        apply_cafm_role_profile(user)
+        after = (
+            user.role_profile_name,
+            user.module_profile,
+            tuple(sorted(row.role for row in user.roles)),
+            tuple(sorted(row.module for row in user.block_modules)),
+        )
+        if after != before:
+            user.save(ignore_permissions=True)
+
+
+def ensure_normal_cafm_user_default_workspaces():
+    """Repair the landing workspace for normal CAFM employees and technicians."""
+    normal_roles = {"Requester / Employee", "Technician"}
+    supervisor_roles = {"Facility Manager", "Facility Coordinator"}
+
+    users = frappe.get_all(
+        "User",
+        filters={"enabled": 1, "user_type": "System User"},
+        pluck="name",
+    )
+    employee_users = set(
+        frappe.get_all(
+            "Employee",
+            filters={"status": "Active", "user_id": ["is", "set"]},
+            pluck="user_id",
+        )
+    )
+    for user in users:
+        roles = set(
+            frappe.get_all(
+                "Has Role",
+                filters={"parent": user, "parenttype": "User"},
+                pluck="role",
+            )
+        )
+        is_linked_employee = user in employee_users
+        cafm_workspace_roles = normal_roles | supervisor_roles
+        if not (roles & cafm_workspace_roles or is_linked_employee):
+            continue
+        frappe.db.set_value(
+            "User",
+            user,
+            "default_workspace",
+            "Welcome Workspace",
+            update_modified=False,
+        )
 
 
 def ensure_issue_priorities():
@@ -241,6 +365,18 @@ def ensure_general_inspection_template():
 def ensure_custom_fields():
     create_custom_fields(
         {
+            "User": [
+                {
+                    "fieldname": "custom_cafm_role_profile",
+                    "fieldtype": "Link",
+                    "label": "CAFM Role Profile",
+                    "options": "Role Profile",
+                    "insert_after": "role_profile_name",
+                    "hidden": 1,
+                    "read_only": 1,
+                    "no_copy": 1,
+                },
+            ],
             "Dashboard Chart": [
                 {
                     "fieldname": "custom_horizontal_bars",
