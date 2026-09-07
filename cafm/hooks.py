@@ -31,7 +31,7 @@ app_include_css = "/assets/cafm/css/cafm.css"
 app_include_js = [
     "/assets/cafm/js/custom-dashboard-chart.js?v=20",
     "/assets/cafm/js/facility_asset_filters.js?v=6",
-    "/assets/cafm/js/welcome-workspace-launcher.js?v=8",
+    "/assets/cafm/js/welcome-workspace-launcher.js?v=11",
 ]
 
 # include js, css files in header of web template
@@ -285,7 +285,12 @@ doc_events = {
         ],
     },
     "User": {
-        "validate": "cafm.events.user.enforce_cafm_demo_user_roles",
+        "before_insert": "cafm.events.user.clear_new_user_profiles",
+        "validate": [
+            "cafm.events.user.enforce_cafm_demo_user_roles",
+            "cafm.events.user.apply_cafm_role_profile",
+            "cafm.events.user.set_normal_cafm_user_default_workspace",
+        ],
     },
     "Stock Entry": {
         "validate": "cafm.events.stock_entry.validate_facility_material_issue",

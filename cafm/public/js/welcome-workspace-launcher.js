@@ -20,18 +20,37 @@
     const page_path = decodeURIComponent(window.location.pathname).toLowerCase();
     const is_welcome_workspace = page_path.endsWith("/app/workspaces/welcome workspace")
       || page_path.endsWith("/app/welcome-workspace");
-    if (!is_welcome_workspace) return;
+    if (!is_welcome_workspace) {
+      $("#cafm-welcome-launcher").remove();
+      return;
+    }
 
     remove_hi_message();
     remove_empty_paragraph_blocks();
 
     const roles = frappe.user_roles || [];
     const is_manager = manager_roles.some(function (role) { return roles.includes(role); });
-    if (is_manager) return;
+    const is_facility_supervisor = ["Facility Manager", "Facility Coordinator"]
+      .some(function (role) { return roles.includes(role); });
 
     let launchers = [];
 
-    if (roles.includes("Technician")) {
+    if (is_facility_supervisor) {
+      launchers = [
+        {
+          label: "Open Facilities Workspace",
+          description: "Manage the facility records and reports available to your role.",
+          action: function () { frappe.set_route("Workspaces", "Facilities"); }
+        },
+        {
+          label: "Open Facility Portal",
+          description: "Submit and track your own facility requests.",
+          action: function () { window.location.assign("/facility-portal"); }
+        }
+      ];
+    } else if (is_manager) {
+      return;
+    } else if (roles.includes("Technician")) {
       launchers = [
         {
           label: "Open Technician Mobile",
@@ -86,6 +105,9 @@
   $(function () {
     schedule_launcher();
     setTimeout(schedule_launcher, 600);
+    frappe.router.on("change", function () {
+      setTimeout(add_launcher, 0);
+    });
   });
   frappe.dom.set_style(".cafm-welcome-launcher{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;max-width:760px;margin:24px auto}.cafm-welcome-launcher-card{padding:28px;border:1px solid #d7e6f1;border-radius:16px;background:linear-gradient(135deg,#f5fbff,#ffffff);text-align:center;box-shadow:0 7px 20px rgba(24,76,112,.07)}.cafm-welcome-launcher-card span{display:inline-block;padding:4px 9px;border-radius:99px;background:#e4f3fd;color:#1c679d;font-size:11px;font-weight:800;letter-spacing:.5px}.cafm-welcome-launcher-card h2{margin:13px 0 7px;color:#174f80;font-size:25px}.cafm-welcome-launcher-card p{margin:0 auto 19px;max-width:400px;color:#587187}.cafm-welcome-launcher-card .btn{padding:10px 17px;background:#0f5a97;border-color:#0f5a97}");
 })();
