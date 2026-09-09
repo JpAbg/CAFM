@@ -66,6 +66,7 @@ def setup_cafm():
     ensure_sla_policies()
     ensure_general_inspection_category()
     ensure_custom_fields()
+    ensure_dashboard_chart_types()
     ensure_cafm_user_role_profiles()
     migrate_legacy_warranty_provider_links()
     ensure_asset_location_customization()
@@ -1252,3 +1253,35 @@ def cleanup_legacy_reason_fields():
                 ignore_permissions=True,
                 force=True,
             )
+
+def ensure_dashboard_chart_types():
+    # Frappe has no native candlestick type. Keep any options supplied by other
+    # installed apps and add CAFM's renderer type once.
+    filters = {
+        "doc_type": "Dashboard Chart",
+        "field_name": "type",
+        "property": "options",
+    }
+    default_options = "Line\nBar\nPercentage\nPie\nDonut\nHeatmap"
+    setter = frappe.db.get_value(
+        "Property Setter", filters, ["name", "value"], as_dict=True
+    )
+    current_options = setter.value if setter else default_options
+    options = [option for option in current_options.split("\n") if option]
+    if "Candlestick" in options:
+        return
+    options.append("Candlestick")
+    value = "\n".join(options)
+    if setter:
+        frappe.db.set_value(
+            "Property Setter", setter.name, "value", value, update_modified=False
+        )
+    else:
+        make_property_setter(
+            "Dashboard Chart",
+            "type",
+            "options",
+            value,
+            "Text",
+            is_system_generated=False,
+        )

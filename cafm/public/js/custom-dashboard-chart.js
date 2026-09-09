@@ -84,6 +84,12 @@ function init_override() {
             (this.chart_doc?.horizontal_bars || this.chart_doc?.custom_horizontal_bars) &&
             this.data?.labels?.length;
 
+        if (this.chart_doc?.type === "Candlestick") {
+            this.loading.hide(); this.empty.hide(); this.chart_wrapper.show(); this.$summary?.hide();
+            render_monthly_usage_candles(this.chart_wrapper[0], this.data || {});
+            return;
+        }
+
         if (!is_horizontal) {
             const uses_flexible_legend = ["Donut", "Percentage"].includes(
                 this.chart_doc?.type
@@ -324,6 +330,18 @@ function init_override() {
         $container.append(svg);
     }
 
+    function render_monthly_usage_candles(container,data) {
+        const $c=$(container),candles=Array.isArray(data.candles)?data.candles:[],unit=String(data.unit||"units");$c.empty();
+        if(!candles.length){$c.append($("<div class='cafm-candle-empty'></div>").text(data.message||"No monthly consumption readings are available for this meter."));return;}
+        const width=Math.max($c.width()||700,360),height=310,margin={top:24,right:28,bottom:72,left:68},cw=width-margin.left-margin.right,ch=height-margin.top-margin.bottom;
+        const values=candles.flatMap(c=>[Number(c.low),Number(c.high),Number(c.open),Number(c.close)]).filter(Number.isFinite),raw_min=Math.min(...values),raw_max=Math.max(...values),pad=Math.max((raw_max-raw_min)*.12,raw_max*.04,1),min=Math.max(0,raw_min-pad),max=raw_max+pad,range=max-min||1,y=v=>margin.top+((max-v)/range)*ch,step=cw/candles.length,bw=Math.min(72,Math.max(16,step*.72)),svg=svg_element("svg");
+        svg.setAttribute("width","100%");svg.setAttribute("height",height);svg.setAttribute("viewBox","0 0 "+width+" "+height);svg.classList.add("cafm-candle-chart");
+        const text=(v,x,yp,a="start",s=11,o=.72)=>{const n=svg_element("text");n.textContent=v;Object.entries({x:x,y:yp,"text-anchor":a,"font-size":s,fill:"currentColor",opacity:o}).forEach(([k,q])=>n.setAttribute(k,q));svg.appendChild(n);};
+        for(let i=0;i<=4;i++){const v=min+range*i/4,yp=y(v),line=svg_element("line");Object.entries({x1:margin.left,x2:width-margin.right,y1:yp,y2:yp,stroke:"currentColor",opacity:.1}).forEach(([k,q])=>line.setAttribute(k,q));svg.appendChild(line);text(format_number(v)+" "+unit,margin.left-9,yp+4,"end",10,.62);}
+        candles.forEach((c,i)=>{const center=margin.left+step*i+step/2,open=Number(c.open),close=Number(c.close),color=Boolean(Number(c.is_first))?"#64748B":close>=open?"#16A34A":"#DC2626",wick=svg_element("line");Object.entries({x1:center,x2:center,y1:y(Number(c.high)),y2:y(Number(c.low)),stroke:color,"stroke-width":2}).forEach(([k,q])=>wick.setAttribute(k,q));svg.appendChild(wick);const body=svg_element("rect");Object.entries({x:center-bw/2,y:Math.min(y(open),y(close)),width:bw,height:Math.max(Math.abs(y(close)-y(open)),2),rx:2,fill:color}).forEach(([k,q])=>body.setAttribute(k,q));const t=svg_element("title"),change=Number(c.change)||0;t.textContent=String(c.label)+"\nPrevious month: "+format_number(open)+" "+unit+"\nThis month: "+format_number(close)+" "+unit+"\nChange: "+(change>=0?"+":"")+format_number(change)+" "+unit;body.appendChild(t);svg.appendChild(body);text(String(c.label||""),center,height-margin.bottom+25,"middle",10,.78);});
+        const axis=svg_element("line");Object.entries({x1:margin.left,x2:width-margin.right,y1:height-margin.bottom,y2:height-margin.bottom,stroke:"currentColor",opacity:.22}).forEach(([k,q])=>axis.setAttribute(k,q));svg.appendChild(axis);$c.append(svg);$c.append($("<div class='cafm-candle-legend'><span class='cafm-candle-rise'>&#9632;</span> Usage increased <span class='cafm-candle-fall'>&#9632;</span> Usage decreased <span class='cafm-candle-first'>&#9632;</span> First reported month</div>"));
+    }
+
     function svg_element(name) {
         return document.createElementNS("http://www.w3.org/2000/svg", name);
     }
@@ -532,3 +550,5 @@ function init_custom_number_card_trends() {
 }
 
 init_custom_number_card_trends();
+
+frappe.dom.set_style(".cafm-candle-chart{display:block;overflow:visible}.cafm-candle-legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:3px 0 0 68px;color:#5d7184;font-size:12px}.cafm-candle-rise{color:#16A34A}.cafm-candle-fall{color:#DC2626}.cafm-candle-first{color:#64748B}.cafm-candle-empty{padding:56px 20px;color:#6b7d90;text-align:center}");

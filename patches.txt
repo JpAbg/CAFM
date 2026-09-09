@@ -1,0 +1,1 @@
+cafm.patches.v1_0.add_monthly_usage_candles_to_dashboard
