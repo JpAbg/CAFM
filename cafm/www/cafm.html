@@ -1,0 +1,186 @@
+{% extends "templates/web.html" %}
+{% block title %}CAFM Operations{% endblock %}
+{% block page_content %}
+<div id="cafm-app-view">
+  <div class="cafm-app-loading">Loading CAFM Operations...</div>
+</div>
+<script>
+frappe.ready(function () {
+  const root = document.getElementById("cafm-app-view");
+  const esc = value => String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const route = value => window.location.href = value;
+
+  function icon(name) {
+    const paths = {
+      home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/>',
+      maintenance: '<path d="m14 6 4-4 2 2-4 4M3 21l7-7 3 3-7 7H3Z"/><path d="m8 4 3 3-3 3-3-3Z"/>',
+      assets: '<rect x="3" y="4" width="7" height="7" rx="1"/><rect x="14" y="4" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+      vendors: '<path d="M4 20V7a2 2 0 0 1 2-2h8v15"/><path d="M14 10h4a2 2 0 0 1 2 2v8M8 9h2m-2 4h2m-2 4h2m7-3h1m-1 3h1"/>',
+      utilities: '<path d="M13 2 5 13h6l-1 9 8-12h-6Z"/>',
+      analytics: '<path d="M4 20V10m8 10V4m8 16v-7"/><path d="M2 20h20"/>',
+      left: '<path d="m15 18-6-6 6-6"/>',
+      right: '<path d="m9 18 6-6-6-6"/>'
+    };
+    return '<svg class="cafm-app-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (paths[name] || '') + '</svg>';
+  }
+
+  function navItem(label, href, active, iconName) {
+    return '<button class="cafm-app-nav-item ' + (active ? "active" : "") + '" data-route="' + href + '" title="' + label + '">' + icon(iconName) + '<span>' + label + '</span><b>></b></button>';
+  }
+
+  function navGroup(label, items, expanded, iconName) {
+    return '<details class="cafm-app-nav-group"' + (expanded ? ' open' : '') + '>'
+      + '<summary title="' + label + '">' + icon(iconName) + '<span>' + label + '</span><b>&#8964;</b></summary>'
+      + '<div class="cafm-app-nav-group-items">' + items.map(item => navItem(item[0], item[1], false)).join("") + '</div>'
+      + '</details>';
+  }
+
+  function render(data) {
+    const stats = data.stats || [];
+    const orders = data.work_orders || [];
+    const name = data.user_full_name || "Facility team";
+    root.innerHTML = ''
+      + '<div class="cafm-app-shell">'
+      + '  <aside class="cafm-app-sidebar">'
+      + '    <div class="cafm-app-brand"><span class="cafm-app-brand-mark">C</span><div><strong>CAFM</strong><small>OPERATIONS</small></div></div>'
+      + '    <div class="cafm-app-account-wrap">'
+      + '      <button class="cafm-app-user cafm-app-account-button" type="button" aria-expanded="false"><span>' + esc(name.split(" ").filter(Boolean).slice(0, 2).map(word => word[0]).join("").toUpperCase()) + '</span><div><small>FACILITY TEAM</small><strong>' + esc(name) + '</strong></div><b>&#8964;</b></button>'
+      + '      <div class="cafm-app-account-menu" hidden>'
+      + '        <button data-route="/app"><span>Apps</span></button>'
+      + '        <button data-route="/app/user-profile"><span>Settings</span></button>'
+      + '        <button class="cafm-app-account-about"><span>About</span></button>'
+      + '      </div>'
+      + '    </div>'
+      + '    <nav>'
+      + navItem("Home", "/cafm", true, "home")
+      + navGroup("Maintenance", [["Requests", "/app/issue"], ["Work orders", "/app/facility-work-order"], ["Preventive maintenance", "/app/preventive-maintenance-plan"], ["Inspections", "/app/facility-inspection"]], false, "maintenance")
+      + navGroup("Assets", [["Assets", "/app/asset"], ["Locations", "/app/facility-location"], ["Categories", "/app/asset-category"]], false, "assets")
+      + navGroup("Vendors & SLA", [["Providers", "/app/facility-service-provider"], ["Contracts", "/app/facility-service-contract"], ["Quotations", "/app/facility-vendor-quotation"], ["SLA policies", "/app/facility-sla-policy"]], false, "vendors")
+      + navGroup("Utilities", [["Meters", "/app/utility-meter"], ["Readings", "/app/utility-reading"], ["Bills", "/app/utility-bill"], ["Budgets", "/app/utility-budget"]], false, "utilities")
+      + navGroup("Analytics", [["Facility Management", "/app/dashboard-view/Facility%20Management%20Dashboard"], ["SLA Performance", "/app/dashboard-view/SLA%20Performance%20Dashboard"], ["Utility Consumption", "/app/dashboard-view/Utility%20Consumption%20Dashboard"]], false, "analytics")
+      + '    </nav>'
+      + '    <a class="cafm-app-workspace-link" href="/app/Workspaces/Facilities">Open Facilities Workspace</a>'
+      + '    <button class="cafm-app-collapse" type="button"><span class="cafm-app-collapse-icon"></span><span>Collapse</span></button>'
+      + '  </aside>'
+      + '  <main class="cafm-app-main">'
+      + '    <header class="cafm-app-header"><div><p>FACILITIES OPERATIONS</p><h1>Good day, ' + esc(name.split(" ")[0] || "there") + '</h1><span>Here is the current maintenance picture.</span></div><div class="cafm-app-header-actions"><button class="cafm-app-refresh" title="Refresh"><span>&#8635;</span><em>Refresh</em></button></div></header>'
+      + '    <section class="cafm-app-stats">' + stats.map(card => ''
+      + '      <button class="cafm-app-stat ' + esc(card.tone) + '" data-route="' + esc(card.route) + '"><small>' + esc(card.label) + '</small><strong>' + esc(card.value) + '</strong><span>' + esc(card.detail) + '</span></button>'
+      + '    ').join("") + '</section>'
+      + '    <section class="cafm-app-panel"><header><div><p>ACTIVE WORK</p><h2>Work orders needing attention</h2></div><button class="cafm-app-text-link" data-route="/app/facility-work-order">View all work orders</button></header>'
+      + '      <div class="cafm-app-work-list">' + (orders.length ? orders.map(order => ''
+      + '        <button class="cafm-app-work-row" data-route="/app/facility-work-order/' + esc(order.name) + '">'
+      + '          <span class="cafm-app-priority ' + esc(String(order.priority || "").toLowerCase()) + '">' + esc(order.priority || "Not set") + '</span>'
+      + '          <div><strong>' + esc(order.subject || order.name) + '</strong><small>' + esc(order.facility_location || "No location set") + ' - due ' + esc(order.planned_end || "Not scheduled") + '</small></div>'
+      + '          <em>' + esc(order.work_order_status) + '</em><b>></b>'
+      + '        </button>'
+      + '      ').join("") : '<div class="cafm-app-empty"><strong>No active work orders</strong><span>New and assigned work will appear here.</span></div>') + '</div>'
+      + '    </section>'
+      + '  </main>'
+      + '</div>';
+    root.querySelectorAll("[data-route]").forEach(button => button.onclick = () => route(button.dataset.route));
+    root.querySelector(".cafm-app-refresh").onclick = load;
+    const shell = root.querySelector(".cafm-app-shell");
+    const collapseButton = root.querySelector(".cafm-app-collapse");
+    const accountWrap = root.querySelector(".cafm-app-account-wrap");
+    const accountButton = root.querySelector(".cafm-app-account-button");
+    const accountMenu = root.querySelector(".cafm-app-account-menu");
+    let accountOpenedFromCollapsed = false;
+
+    const setSidebarCollapsed = collapsed => {
+      shell.classList.toggle("is-collapsed", collapsed);
+      collapseButton.querySelector("span:not(.cafm-app-collapse-icon)").textContent = collapsed ? "Expand" : "Collapse";
+      collapseButton.querySelector(".cafm-app-collapse-icon").innerHTML = icon(collapsed ? "right" : "left");
+      collapseButton.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+      localStorage.setItem("cafm-sidebar-collapsed", collapsed ? "1" : "0");
+    };
+    const openAccountMenu = () => {
+      accountMenu.hidden = false;
+      accountMenu.classList.add("is-opening");
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        accountMenu.classList.remove("is-opening");
+      }));
+    };
+    const closeAccountMenu = () => {
+      if (accountMenu.hidden) return;
+      accountMenu.hidden = true;
+      accountButton.setAttribute("aria-expanded", "false");
+      if (accountOpenedFromCollapsed) {
+        accountOpenedFromCollapsed = false;
+        setSidebarCollapsed(true);
+      }
+    };
+
+    setSidebarCollapsed(localStorage.getItem("cafm-sidebar-collapsed") === "1");
+    accountButton.onclick = () => {
+      if (shell.classList.contains("is-collapsed")) {
+        accountOpenedFromCollapsed = true;
+        setSidebarCollapsed(false);
+        openAccountMenu();
+        accountButton.setAttribute("aria-expanded", "true");
+        return;
+      }
+      if (accountMenu.hidden) {
+        openAccountMenu();
+        accountButton.setAttribute("aria-expanded", "true");
+      } else {
+        closeAccountMenu();
+      }
+    };
+    root.addEventListener("click", event => {
+      if (!accountWrap.contains(event.target)) closeAccountMenu();
+    });
+    root.querySelector(".cafm-app-account-about").onclick = () => frappe.msgprint({
+      title: "CAFM Operations",
+      message: "Your facilities workspace for maintenance, assets, vendors, SLA, and utilities.",
+      indicator: "blue"
+    });
+
+    collapseButton.onclick = () => {
+      accountOpenedFromCollapsed = false;
+      setSidebarCollapsed(!shell.classList.contains("is-collapsed"));
+    };
+    root.querySelectorAll(".cafm-app-nav-group summary").forEach(summary => {
+      summary.onclick = event => {
+        if (shell.classList.contains("is-collapsed")) {
+          event.preventDefault();
+          setSidebarCollapsed(false);
+          summary.parentElement.open = true;
+        }
+      };
+    });
+  }
+
+  function load() {
+    root.innerHTML = '<div class="cafm-app-loading">Loading CAFM Operations...</div>';
+    frappe.call({
+      method: "cafm.api.get_cafm_operations_dashboard",
+      callback: response => render(response.message || {}),
+      error: error => {
+        const message = error && error.message ? error.message : "You do not have access to this view.";
+        root.innerHTML = '<div class="cafm-app-error"><h2>CAFM Operations</h2><p>' + esc(message) + '</p><a href="/app">Return to Desk</a></div>';
+      }
+    });
+  }
+  load();
+});
+</script>
+<style>
+#cafm-app-view{max-width:1440px;margin:28px auto;padding:0 20px}.cafm-app-shell{display:grid;grid-template-columns:255px minmax(0,1fr);transition:grid-template-columns .2s ease;min-height:720px;overflow:visible;border:1px solid #d9e5ed;border-radius:20px;background:#f4f8fb;box-shadow:0 12px 35px rgba(20,58,87,.08)}.cafm-app-sidebar{position:sticky;top:0;display:flex;flex-direction:column;height:100vh;max-height:100vh;overflow-y:auto;padding:22px 14px;background:linear-gradient(165deg,#103e6a,#0b3156);color:#fff}.cafm-app-brand{display:flex;gap:10px;align-items:center;margin:0 7px 35px}.cafm-app-brand-mark{display:grid;place-items:center;width:35px;height:35px;border-radius:10px;background:#49aee2;font-size:19px;font-weight:800}.cafm-app-brand strong,.cafm-app-brand small{display:block}.cafm-app-brand strong{font-size:17px;letter-spacing:.8px}.cafm-app-brand small{color:#a9d5f0;font-size:8px;font-weight:800;letter-spacing:1.3px}.cafm-app-user{display:flex;gap:10px;align-items:center;margin:0 7px 25px;padding:11px;border-radius:12px;background:rgba(255,255,255,.08)}.cafm-app-user>span{display:grid;place-items:center;width:35px;height:35px;border-radius:50%;background:#40a4dc;font-size:12px;font-weight:800}.cafm-app-user small,.cafm-app-user strong{display:block}.cafm-app-user small{color:#a9d5f0;font-size:9px;font-weight:800;letter-spacing:.35px}.cafm-app-user strong{font-size:13px}.cafm-app-account-wrap{position:relative;margin:0 7px 25px}.cafm-app-account-button{width:100%;margin:0;border:0;color:#fff;text-align:left;cursor:pointer}.cafm-app-account-button>b{margin-left:auto;color:#b3d9ef;font-size:15px;font-weight:400}.cafm-app-account-menu{position:absolute;top:calc(100% + 7px);left:0;z-index:30;width:205px;padding:7px;border:1px solid rgba(181,217,239,.22);border-radius:12px;background:#173d5b;box-shadow:0 13px 28px rgba(0,0,0,.27)}.cafm-app-account-menu{opacity:1;transform:translateY(0);visibility:visible;pointer-events:auto;transition:opacity .16s ease,transform .16s ease,visibility .16s ease}.cafm-app-account-menu[hidden]{display:block;opacity:0;transform:translateY(-6px);visibility:hidden;pointer-events:none}.cafm-app-account-menu.is-opening{opacity:0;transform:translateY(-8px);visibility:visible;pointer-events:none}.cafm-app-account-menu button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:#eff8ff;text-align:left;font-size:13px}.cafm-app-account-menu button:hover{background:#245979}.cafm-app-account-menu button b{color:#9ccae5;font-weight:400}.cafm-app-account-menu hr{width:100%;margin:6px 0;border-top-color:rgba(181,217,239,.22)}.cafm-app-nav-group{margin:3px 0}.cafm-app-nav-group summary{display:flex;justify-content:space-between;align-items:center;padding:10px 11px;border-radius:9px;color:#eaf6ff;cursor:pointer;font-size:13px;font-weight:700;list-style:none}.cafm-app-nav-group summary::-webkit-details-marker{display:none}.cafm-app-nav-group summary:hover,.cafm-app-nav-group[open] summary{background:rgba(41,111,161,.45)}.cafm-app-nav-group summary b{color:#9bc9e7;font-size:15px;font-weight:400;transition:transform .18s ease}.cafm-app-nav-group[open] summary b{transform:rotate(180deg)}.cafm-app-nav-group-items{display:grid!important;gap:2px;max-height:0;overflow:hidden;opacity:0;padding:0 0 0 10px;transition:max-height .2s ease,opacity .15s ease,padding .2s ease}.cafm-app-nav-group[open] .cafm-app-nav-group-items{max-height:190px;opacity:1;padding:3px 0 4px 10px}.cafm-app-nav-group-items .cafm-app-nav-item{padding:8px 10px;color:#cfe9fa;font-size:12px}.cafm-app-sidebar-footer{margin:12px 7px 0;padding-top:12px;border-top:1px solid #37729c}.cafm-app-settings-link{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:#eaf6ff;text-align:left;font-size:12px;font-weight:700}.cafm-app-settings-link:hover{background:#1c6097}.cafm-app-settings-link b{color:#9bc9e7;font-weight:400}.cafm-app-nav-item .cafm-app-icon,.cafm-app-nav-group summary .cafm-app-icon{display:none;width:19px;height:19px;flex:0 0 19px}.cafm-app-collapse-icon{display:flex;width:19px;height:19px}.cafm-app-collapse-icon .cafm-app-icon{width:19px;height:19px}.cafm-app-collapse{display:flex;gap:8px;align-items:center;margin:auto 7px 0;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:#cfe9fa;text-align:left;font-size:12px;cursor:pointer}.cafm-app-collapse:hover{background:#1c6097;color:#fff}.cafm-app-shell.is-collapsed{grid-template-columns:78px minmax(0,1fr)}.cafm-app-shell.is-collapsed .cafm-app-sidebar{padding:22px 11px}.cafm-app-shell.is-collapsed .cafm-app-brand{justify-content:center;margin:0 0 28px}.cafm-app-shell.is-collapsed .cafm-app-brand>div,.cafm-app-shell.is-collapsed .cafm-app-user>div,.cafm-app-shell.is-collapsed .cafm-app-user>b,.cafm-app-shell.is-collapsed .cafm-app-nav-item>span,.cafm-app-shell.is-collapsed .cafm-app-nav-item>b,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary>span,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary>b,.cafm-app-shell.is-collapsed .cafm-app-workspace-link,.cafm-app-shell.is-collapsed .cafm-app-collapse span:not(.cafm-app-collapse-icon){display:none}.cafm-app-shell.is-collapsed .cafm-app-account-wrap{margin:0 0 18px}.cafm-app-shell.is-collapsed .cafm-app-user{justify-content:center;margin:0;padding:8px}.cafm-app-shell.is-collapsed .cafm-app-account-menu{top:0;left:56px}.cafm-app-shell.is-collapsed .cafm-app-nav-item,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary{justify-content:center;padding:11px}.cafm-app-shell.is-collapsed .cafm-app-nav-item .cafm-app-icon,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary .cafm-app-icon{display:block;color:#d8efff}.cafm-app-shell.is-collapsed .cafm-app-nav-group-items{display:none!important}.cafm-app-shell.is-collapsed .cafm-app-collapse{justify-content:center;margin:auto 0 0;padding:10px}.cafm-app-sidebar nav{display:grid;gap:4px}.cafm-app-nav-item{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 11px;border:0;border-radius:9px;background:transparent;color:#eaf6ff;text-align:left;font-size:13px}.cafm-app-nav-item:hover,.cafm-app-nav-item.active{background:#1c6097}.cafm-app-nav-item b{font-weight:400;color:#9bc9e7}.cafm-app-sidebar hr{width:calc(100% - 12px);margin:12px 6px;border:0;border-top:1px solid #37729c}.cafm-app-workspace-link{margin:22px 7px 0;padding:10px;border:1px solid #4b94bf;border-radius:9px;color:#fff;text-align:center;font-size:12px;font-weight:700}.cafm-app-workspace-link:hover{background:#fff;color:#134a78;text-decoration:none}.cafm-app-main{min-width:0;padding:34px;transition:padding .2s ease}.cafm-app-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:28px}.cafm-app-header p,.cafm-app-panel header p,.cafm-app-discover p{margin:0;color:#487391;font-size:10px;font-weight:800;letter-spacing:.8px}.cafm-app-header h1{margin:6px 0 5px;color:#173650;font-size:30px}.cafm-app-header span,.cafm-app-discover span{color:#657d91;font-size:14px}.cafm-app-refresh{display:inline-flex;gap:8px;align-items:center;min-height:46px;padding:11px 18px;border:1px solid #8eb9d7;border-radius:11px;background:#fff;color:#175d90;font-size:14px;font-weight:800;box-shadow:0 3px 8px rgba(20,88,137,.12);cursor:pointer}.cafm-app-refresh:hover{background:#eaf5fc;border-color:#397eae;box-shadow:0 5px 13px rgba(20,88,137,.2)}.cafm-app-refresh span{font-size:18px;line-height:1}.cafm-app-refresh em{font-style:normal}.cafm-app-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}.cafm-app-stat{min-height:88px;padding:12px 14px;border:1px solid #dce7ee;border-radius:14px;background:#fff;text-align:left;box-shadow:0 3px 8px rgba(20,58,87,.03)}.cafm-app-stat:hover{transform:translateY(-2px);box-shadow:0 9px 18px rgba(20,58,87,.09)}.cafm-app-stat small,.cafm-app-stat strong,.cafm-app-stat span{display:block}.cafm-app-stat small{color:#55748e;font-size:11px;font-weight:800;text-transform:uppercase}.cafm-app-stat strong{margin:6px 0 3px;color:#1e5f91;font-size:24px;line-height:1}.cafm-app-stat span{color:#71869a;font-size:11px}.cafm-app-stat.violet strong{color:#7955b6}.cafm-app-stat.red strong{color:#cf4545}.cafm-app-stat.amber strong{color:#bd7911}.cafm-app-panel{padding:22px;border:1px solid #dce7ee;border-radius:15px;background:#fff}.cafm-app-panel header{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:15px}.cafm-app-panel h2,.cafm-app-discover h2{margin:4px 0;color:#193a56;font-size:20px}.cafm-app-text-link{border:0;background:transparent;color:#1767a0;font-size:12px;font-weight:700}.cafm-app-work-list{display:grid}.cafm-app-work-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:14px 4px;border:0;border-top:1px solid #e6eef4;background:transparent;text-align:left}.cafm-app-work-row:first-child{border-top:0}.cafm-app-work-row:hover strong{color:#1767a0}.cafm-app-work-row strong,.cafm-app-work-row small{display:block}.cafm-app-work-row strong{overflow:hidden;color:#24455f;font-size:14px;text-overflow:ellipsis;white-space:nowrap}.cafm-app-work-row small{margin-top:4px;color:#71869a;font-size:11px}.cafm-app-work-row em{padding:5px 8px;border-radius:99px;background:#edf4f8;color:#40637d;font-size:10px;font-style:normal;font-weight:700}.cafm-app-work-row>b{color:#7190a6}.cafm-app-priority{padding:5px 8px;border-radius:99px;background:#e7f1fb;color:#22669a;font-size:10px;font-weight:800}.cafm-app-priority.high{background:#fff0df;color:#aa5e00}.cafm-app-priority.critical{background:#ffe5e5;color:#b82626}.cafm-app-priority.low{background:#e4f7ec;color:#247448}.cafm-app-empty{display:grid;gap:5px;padding:28px;text-align:center;color:#668095}.cafm-app-discover{display:flex;justify-content:space-between;gap:22px;align-items:center;margin-top:22px;padding:23px;border-radius:15px;background:linear-gradient(110deg,#e5f2fa,#f5faff)}.cafm-app-disabled{padding:9px 13px;border:0;border-radius:8px;background:#d4e4ef;color:#6c8498;font-weight:700}.cafm-app-loading,.cafm-app-error{padding:80px 20px;text-align:center;color:#547087}.cafm-app-error h2{color:#173650}.cafm-app-error a{color:#1767a0;font-weight:700}@media(max-width:820px){.cafm-app-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.cafm-app-sidebar{position:static;height:auto;max-height:none;overflow:visible}div#cafm-app-view{margin:12px auto;padding:0 10px}.cafm-app-shell{grid-template-columns:1fr}.cafm-app-sidebar{padding-bottom:18px}.cafm-app-sidebar nav{grid-template-columns:1fr 1fr}.cafm-app-workspace-link{margin-top:14px}.cafm-app-main{padding:22px 16px}.cafm-app-header h1{font-size:25px}.cafm-app-stats{grid-template-columns:1fr 1fr;gap:9px}.cafm-app-stat{min-height:115px;padding:13px}.cafm-app-stat strong{font-size:26px}.cafm-app-panel{padding:16px}.cafm-app-panel header{align-items:flex-start}.cafm-app-text-link{white-space:nowrap}.cafm-app-work-row{grid-template-columns:auto minmax(0,1fr) auto}.cafm-app-work-row>b{display:none}.cafm-app-work-row em{grid-column:2;justify-self:start}.cafm-app-discover{display:block}.cafm-app-disabled{margin-top:14px}.cafm-app-refresh em{display:none}.cafm-app-refresh{width:40px;justify-content:center;padding:10px}}
+
+/* Full-screen CAFM app shell: this page intentionally does not use website chrome. */
+body:has(#page-cafm) { margin:0!important; padding:0!important; background:#f4f8fb; overflow-x:hidden; }
+body:has(#page-cafm) .page-content-wrapper > main.container { width:100%!important; max-width:none!important; margin:0!important; padding:0!important; }
+body:has(#page-cafm) .navbar,
+body:has(#page-cafm) .web-footer,
+body:has(#page-cafm) .page-breadcrumbs,
+body:has(#page-cafm) .page-footer { display:none!important; }
+body:has(#page-cafm) #page-cafm,
+body:has(#page-cafm) .page-content-wrapper,
+body:has(#page-cafm) .page_content { width:100%; max-width:none; min-height:100vh; margin:0; padding:0; }
+body:has(#page-cafm) .page-content-wrapper > main { margin:0; padding:0; max-width:none; }
+body:has(#page-cafm) #cafm-app-view { width:100%; max-width:none; min-height:100vh; margin:0; padding:0; }
+body:has(#page-cafm) .cafm-app-shell { min-height:100vh; border:0; border-radius:0; box-shadow:none; }
+
+</style>
+{% endblock %}

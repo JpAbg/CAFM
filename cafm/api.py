@@ -516,3 +516,104 @@ def upload_work_order_attachment(
         "file_size": file_doc.file_size,
         "is_private": file_doc.is_private,
     }
+
+CAFM_APP_VIEW_ROLES = ("Facility Manager", "Facility Coordinator", "System Manager")
+
+
+def _require_cafm_app_view_access():
+    _require_authenticated()
+    if not set(CAFM_APP_VIEW_ROLES).intersection(frappe.get_roles()):
+        frappe.throw(
+            _("The CAFM Operations view is available to Facility Managers and Coordinators."),
+            frappe.PermissionError,
+        )
+
+
+@frappe.whitelist()
+def get_cafm_operations_dashboard():
+    """Return the small, permission-gated data set used by the /cafm app view."""
+    _require_cafm_app_view_access()
+
+    active_statuses = ("Draft", "Assigned", "In Progress", "Pending")
+    closed_statuses = ("Resolved", "Closed", "Cancelled")
+    open_request_statuses = ("Resolved", "Closed", "Rejected")
+    today = getdate()
+
+    active_orders = frappe.db.count(
+        "Facility Work Order", {"work_order_status": ["in", active_statuses]}
+    )
+    open_requests = frappe.db.count(
+        "Issue", {"custom_issue_status": ["not in", open_request_statuses]}
+    )
+    overdue_orders = frappe.db.count(
+        "Facility Work Order",
+        {
+            "work_order_status": ["not in", closed_statuses],
+            "planned_end": ["<", today],
+        },
+    )
+    sla_breaches = frappe.db.count(
+        "Facility Work Order",
+        {
+            "work_order_status": ["not in", closed_statuses],
+            "sla_status": ["in", ("Response Breached", "Resolution Breached")],
+        },
+    )
+
+    work_orders = frappe.get_all(
+        "Facility Work Order",
+        filters={"work_order_status": ["in", active_statuses]},
+        fields=[
+            "name",
+            "subject",
+            "priority",
+            "work_order_status",
+            "facility_location",
+            "planned_end",
+        ],
+        order_by="planned_end asc, modified desc",
+        limit_page_length=6,
+    )
+
+    user_roles = set(frappe.get_roles(frappe.session.user))
+
+    return {
+        "user_full_name": frappe.db.get_value(
+            "User", frappe.session.user, "full_name"
+        )
+        or frappe.session.user,
+        "can_manage_settings": bool(
+            {"Facility Manager", "System Manager"}.intersection(user_roles)
+        ),
+        "stats": [
+            {
+                "label": _("Active work orders"),
+                "value": active_orders,
+                "detail": _("Assigned, in progress, or pending"),
+                "route": "/app/facility-work-order",
+                "tone": "blue",
+            },
+            {
+                "label": _("Open requests"),
+                "value": open_requests,
+                "detail": _("Awaiting facility action"),
+                "route": "/app/issue",
+                "tone": "violet",
+            },
+            {
+                "label": _("Overdue workload"),
+                "value": overdue_orders,
+                "detail": _("Past planned completion"),
+                "route": "/app/facility-work-order",
+                "tone": "red",
+            },
+            {
+                "label": _("SLA breaches"),
+                "value": sla_breaches,
+                "detail": _("Response or resolution target missed"),
+                "route": "/app/dashboard-view/SLA%20Performance%20Dashboard",
+                "tone": "amber",
+            },
+        ],
+        "work_orders": work_orders,
+    }

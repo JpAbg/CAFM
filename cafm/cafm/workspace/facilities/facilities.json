@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Facilities</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Facility Location\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Asset\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Request\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Work Orders\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Preventive Maintenance\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Facility Inspection\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Inspection Templates\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Teams\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Providers\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Contracts\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"SLA Policies\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Utility Meters\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Manage and analyse</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Maintenance\",\"col\":3}},{\"type\":\"card\",\"data\":{\"card_name\":\"Preventive Maintenance\",\"col\":3}},{\"type\":\"card\",\"data\":{\"card_name\":\"Vendors and SLA\",\"col\":3}},{\"type\":\"card\",\"data\":{\"card_name\":\"Utilities and Reports\",\"col\":3}}]",
+ "content": "[{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Facilities</b></span>\",\"col\":12}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"CAFM Operations\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Facility Location\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Asset\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Request\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Work Orders\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Preventive Maintenance\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Facility Inspection\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Inspection Templates\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Maintenance Teams\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Providers\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Service Contracts\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"SLA Policies\",\"col\":3}},{\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Utility Meters\",\"col\":3}},{\"type\":\"spacer\",\"data\":{\"col\":12}},{\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Manage and analyse</b></span>\",\"col\":12}},{\"type\":\"card\",\"data\":{\"card_name\":\"Maintenance\",\"col\":3}},{\"type\":\"card\",\"data\":{\"card_name\":\"Preventive Maintenance\",\"col\":3}},{\"type\":\"card\",\"data\":{\"card_name\":\"Vendors and SLA\",\"col\":3}},{\"type\":\"card\",\"data\":{\"card_name\":\"Utilities and Reports\",\"col\":3}}]",
  "custom_blocks": [],
  "doctype": "Workspace",
  "for_user": "",
@@ -293,6 +293,11 @@
  ],
  "sequence_id": 25.0,
  "shortcuts": [
+  {
+   "label": "CAFM Operations",
+   "type": "URL",
+   "url": "/cafm"
+  },
   {
    "label": "Facility Location",
    "link_to": "Facility Location",

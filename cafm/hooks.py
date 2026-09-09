@@ -29,7 +29,7 @@ required_apps = ["erpnext", "hrms"]
 # include js, css files in header of desk.html
 app_include_css = "/assets/cafm/css/cafm.css"
 app_include_js = [
-    "/assets/cafm/js/custom-dashboard-chart.js?v=20",
+    "/assets/cafm/js/custom-dashboard-chart.js?v=23",
     "/assets/cafm/js/facility_asset_filters.js?v=6",
     "/assets/cafm/js/welcome-workspace-launcher.js?v=11",
 ]
