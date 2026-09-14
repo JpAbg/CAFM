@@ -1,5 +1,6 @@
 {% extends "templates/web.html" %}
-{% block title %}CAFM Operations{% endblock %}
+{% block title %}CAFM Operations
+{% endblock %}
 {% block page_content %}
 <div id="cafm-app-view">
   <div class="cafm-app-loading">Loading CAFM Operations...</div>
@@ -24,14 +25,147 @@ frappe.ready(function () {
     return '<svg class="cafm-app-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (paths[name] || '') + '</svg>';
   }
 
-  function navItem(label, href, active, iconName) {
-    return '<button class="cafm-app-nav-item ' + (active ? "active" : "") + '" data-route="' + href + '" title="' + label + '">' + icon(iconName) + '<span>' + label + '</span><b>></b></button>';
+
+  window.cafmOpenRecordPreview = function(doctype, name) {
+    const previous = root.querySelector(".cafm-record-preview");
+    if (previous) previous.remove();
+    const close = () => {
+      const preview = root.querySelector(".cafm-record-preview");
+      if (!preview || preview.classList.contains("is-closing")) return;
+      preview.classList.add("is-closing");
+      setTimeout(() => preview.remove(), 180);
+    };
+    const badgeClass = (value, fieldname) => {
+      const text = String(value || "").toLowerCase();
+      const field = String(fieldname || "").toLowerCase();
+      if (/critical|breach|overdue|failed|cancelled|rejected/.test(text)) return "red";
+      if (/high|pending|in progress/.test(text)) return "amber";
+      if (/completed|closed|resolved|approved|active|met/.test(text)) return "green";
+      if (/medium|assigned|new|draft|open/.test(text)) return "blue";
+      if (/low|frequency/.test(text + field)) return "teal";
+      if (/type/.test(field)) return "violet";
+      return "gray";
+    };
+    const fieldValue = field => {
+      const text = field.value === null || field.value === undefined || field.value === "" ? "-" : String(field.value);
+      const isBadge = /(priority|status|type|frequency)/.test(String(field.fieldname || "").toLowerCase());
+      return '<div class="cafm-record-preview-field"><small>' + esc(field.label) + '</small>' + (isBadge ? '<span class="cafm-subtle-badge ' + badgeClass(text, field.fieldname) + '"><span>' + esc(text) + '</span></span>' : '<strong>' + esc(text) + '</strong>') + '</div>';
+    };
+    root.insertAdjacentHTML("beforeend", '<div class="cafm-record-preview" role="dialog" aria-modal="true"><button class="cafm-record-preview-backdrop" data-generic-preview-close aria-label="Close"></button><section class="cafm-record-preview-panel"><div class="cafm-record-preview-loading">Loading record...</div></section></div>');
+    const preview = root.querySelector(".cafm-record-preview");
+    preview.querySelector("[data-generic-preview-close]").onclick = close;
+    frappe.call({
+      method: "cafm.api.get_cafm_doctype_detail",
+      args: { doctype, name },
+      callback: response => {
+        const item = response.message || {};
+        preview.querySelector(".cafm-record-preview-panel").innerHTML = '<header><div><p>' + esc(item.doctype || doctype) + '</p><h2>' + esc(item.title || item.name) + '</h2><span>' + esc(item.name) + '</span></div><button type="button" data-generic-preview-close aria-label="Close">&times;</button></header>'
+          + '<div class="cafm-record-preview-grid cafm-generic-preview-grid">' + (item.fields || []).map(fieldValue).join("") + '</div>'
+          + (item.description ? '<section class="cafm-record-preview-description"><small>DETAILS</small><p>' + esc(item.description) + '</p></section>' : '')
+          + '<footer><button type="button" class="cafm-record-preview-secondary" data-generic-preview-close>Close</button><button type="button" class="cafm-record-preview-primary" data-generic-preview-open>Open full record</button></footer>';
+        preview.querySelectorAll("[data-generic-preview-close]").forEach(button => button.onclick = close);
+        preview.querySelector("[data-generic-preview-open]").onclick = () => window.location.href = item.route;
+      },
+      error: () => {
+        preview.querySelector(".cafm-record-preview-panel").innerHTML = '<div class="cafm-record-preview-error"><h2>Could not load record</h2><p>You may not have permission to view it.</p><button data-generic-preview-close>Close</button></div>';
+        preview.querySelector("[data-generic-preview-close]").onclick = close;
+      }
+    });
+  };
+
+  window.cafmOpenCreateDrawer = function(doctype) {
+    root.querySelector(".cafm-record-preview")?.remove();
+    const close = (refresh) => {
+      const drawer = root.querySelector(".cafm-record-preview");
+      if (!drawer || drawer.classList.contains("is-closing")) return;
+      drawer.classList.add("is-closing");
+      setTimeout(() => {
+        drawer.remove();
+        if (refresh) {
+          const refreshButton = root.querySelector("[data-request-refresh],[data-generic-refresh],.cafm-app-header .cafm-app-refresh");
+          if (refreshButton) refreshButton.click();
+        }
+      }, 180);
+    };
+    root.insertAdjacentHTML("beforeend", '<div class="cafm-record-preview cafm-create-drawer" role="dialog" aria-modal="true"><button class="cafm-record-preview-backdrop" data-create-close aria-label="Close"></button><section class="cafm-record-preview-panel"><div class="cafm-record-preview-loading">Loading creation form...</div></section></div>');
+    const drawer = root.querySelector(".cafm-create-drawer");
+    drawer.querySelector("[data-create-close]").onclick = () => close(false);
+    const inputFor = (field, index) => {
+      const required = field.required ? " required" : "";
+      const value = field.default === null || field.default === undefined ? "" : String(field.default);
+      const label = '<label for="cafm-create-' + index + '">' + esc(field.label) + (field.required ? '<b>*</b>' : '') + '</label>';
+      if (field.fieldtype === "Select") {
+        return '<div class="cafm-create-field">' + label + '<select id="cafm-create-' + index + '" name="' + esc(field.fieldname) + '"' + required + '><option value="">Select ' + esc(field.label) + '</option>' + (field.options || []).map(option => '<option value="' + esc(option) + '"' + (option === value ? ' selected' : '') + '>' + esc(option) + '</option>').join("") + '</select></div>';
+      }
+      if (field.fieldtype === "Link") {
+        const listId = "cafm-create-options-" + index;
+        return '<div class="cafm-create-field">' + label + '<input id="cafm-create-' + index + '" name="' + esc(field.fieldname) + '" value="' + esc(value) + '" list="' + listId + '" autocomplete="off"' + required + '><datalist id="' + listId + '">' + (field.options || []).map(option => '<option value="' + esc(option) + '"></option>').join("") + '</datalist><small>' + esc(field.link_doctype || "Linked record") + '</small></div>';
+      }
+      if (/Text/.test(field.fieldtype)) {
+        return '<div class="cafm-create-field cafm-create-field-wide">' + label + '<textarea id="cafm-create-' + index + '" name="' + esc(field.fieldname) + '" rows="4"' + required + '>' + esc(value) + '</textarea></div>';
+      }
+      if (field.fieldtype === "Check") {
+        return '<div class="cafm-create-field cafm-create-check"><label><input id="cafm-create-' + index + '" type="checkbox" name="' + esc(field.fieldname) + '" value="1"' + (String(value) === "1" ? " checked" : "") + '><span>' + esc(field.label) + '</span></label></div>';
+      }
+      const type = field.fieldtype === "Date" ? "date" : field.fieldtype === "Datetime" ? "datetime-local" : field.fieldtype === "Time" ? "time" : ["Int","Float","Currency","Percent"].includes(field.fieldtype) ? "number" : "text";
+      return '<div class="cafm-create-field">' + label + '<input id="cafm-create-' + index + '" type="' + type + '" name="' + esc(field.fieldname) + '" value="' + esc(value) + '"' + required + '></div>';
+    };
+    frappe.call({
+      method: "cafm.api.get_cafm_create_schema",
+      args: { doctype },
+      callback: response => {
+        const schema = response.message || {};
+        const fields = schema.fields || [];
+        drawer.querySelector(".cafm-record-preview-panel").innerHTML = '<header><div><p>CREATE RECORD</p><h2>Create ' + esc(schema.label || doctype) + '</h2><span>Complete the required information below.</span></div><button type="button" data-create-close aria-label="Close">&times;</button></header>'
+          + '<form class="cafm-create-form"><div class="cafm-create-grid">' + fields.map(inputFor).join("") + '</div><div class="cafm-create-error" hidden></div><footer><button type="button" class="cafm-record-preview-secondary" data-create-close>Cancel</button><button type="submit" class="cafm-record-preview-primary">Create ' + esc(schema.label || doctype) + '</button></footer></form>';
+        drawer.querySelectorAll("[data-create-close]").forEach(button => button.onclick = () => close(false));
+        const form = drawer.querySelector(".cafm-create-form");
+        form.onsubmit = event => {
+          event.preventDefault();
+          const submit = form.querySelector('button[type="submit"]');
+          const errorBox = form.querySelector(".cafm-create-error");
+          submit.disabled = true;
+          submit.textContent = "Creating...";
+          errorBox.hidden = true;
+          const values = {};
+          fields.forEach(field => {
+            const control = form.elements[field.fieldname];
+            values[field.fieldname] = field.fieldtype === "Check" ? (control.checked ? 1 : 0) : control.value;
+          });
+          frappe.call({
+            method: "cafm.api.create_cafm_record",
+            type: "POST",
+            args: { doctype, values: JSON.stringify(values) },
+            callback: result => {
+              const created = result.message || {};
+              drawer.querySelector(".cafm-record-preview-panel").innerHTML = '<div class="cafm-create-success"><span>&#10003;</span><p>RECORD CREATED</p><h2>' + esc(created.title || created.name) + '</h2><small>' + esc(created.name) + '</small><div><button class="cafm-record-preview-secondary" data-created-close>Close</button><button class="cafm-record-preview-primary" data-created-open>View record</button></div></div>';
+              drawer.querySelector("[data-created-close]").onclick = () => close(true);
+              drawer.querySelector("[data-created-open]").onclick = () => {drawer.classList.add("is-closing");setTimeout(() => {drawer.remove();window.cafmOpenRecordPreview(created.doctype, created.name);}, 180);};
+            },
+            error: error => {
+              submit.disabled = false;
+              submit.textContent = "Create " + (schema.label || doctype);
+              errorBox.textContent = (error && error.message) || "The record could not be created. Check the required fields and try again.";
+              errorBox.hidden = false;
+            }
+          });
+        };
+      },
+      error: () => {
+        drawer.querySelector(".cafm-record-preview-panel").innerHTML = '<div class="cafm-record-preview-error"><h2>Could not load creation form</h2><p>You may not have permission to create this record.</p><button data-create-close>Close</button></div>';
+        drawer.querySelector("[data-create-close]").onclick = () => close(false);
+      }
+    });
+  };
+
+  function navItem(label, href, active, iconName, hideArrow) {
+    return '<button class="cafm-app-nav-item ' + (active ? "active" : "") + '" data-route="' + href + '" title="' + label + '">' + icon(iconName) + '<span>' + label + '</span>' + (hideArrow ? '' : '<b>></b>') + '</button>';
   }
 
   function navGroup(label, items, expanded, iconName) {
     return '<details class="cafm-app-nav-group"' + (expanded ? ' open' : '') + '>'
       + '<summary title="' + label + '">' + icon(iconName) + '<span>' + label + '</span><b>&#8964;</b></summary>'
-      + '<div class="cafm-app-nav-group-items">' + items.map(item => navItem(item[0], item[1], false)).join("") + '</div>'
+      + '<div class="cafm-app-nav-group-items">' + items.map(item => navItem(item[0], item[1], false, item[2], item[3])).join("") + '</div>'
       + '</details>';
   }
 
@@ -39,6 +173,16 @@ frappe.ready(function () {
     const stats = data.stats || [];
     const orders = data.work_orders || [];
     const name = data.user_full_name || "Facility team";
+    const attention = data.attention || [];
+    const todayItems = data.today || [];
+    const quickActions = data.quick_actions || [];
+    const operationalRows = (items, emptyTitle, emptyDetail) => items.length
+      ? items.map(item => ''
+        + '<button class="cafm-home-row" data-preview-doctype="' + esc(item.doctype || "") + '" data-preview-name="' + esc(item.name || "") + '" data-route="' + esc(item.route) + '">'
+        + '  <div><small>' + esc(item.kind || "CAFM") + '</small><strong>' + esc(item.title) + '</strong><span>' + esc(item.detail || "") + '</span></div>'
+        + '  <div class="cafm-home-row-meta"><em>' + esc(item.status || "") + '</em>' + (item.priority ? '<b class="cafm-app-priority ' + esc(String(item.priority).toLowerCase()) + '">' + esc(item.priority) + '</b>' : '') + '</div>'
+        + '</button>').join("")
+      : '<div class="cafm-app-empty"><strong>' + esc(emptyTitle) + '</strong><span>' + esc(emptyDetail) + '</span></div>';
     root.innerHTML = ''
       + '<div class="cafm-app-shell">'
       + '  <aside class="cafm-app-sidebar">'
@@ -49,15 +193,16 @@ frappe.ready(function () {
       + '        <button data-route="/app"><span>Apps</span></button>'
       + '        <button data-route="/app/user-profile"><span>Settings</span></button>'
       + '        <button class="cafm-app-account-about"><span>About</span></button>'
+      + '        <button class="cafm-app-account-logout"><span>Logout</span></button>'
       + '      </div>'
       + '    </div>'
       + '    <nav>'
-      + navItem("Home", "/cafm", true, "home")
+      + navItem("Home", "/cafm", true, "home", true)
       + navGroup("Maintenance", [["Requests", "/app/issue"], ["Work orders", "/app/facility-work-order"], ["Preventive maintenance", "/app/preventive-maintenance-plan"], ["Inspections", "/app/facility-inspection"]], false, "maintenance")
       + navGroup("Assets", [["Assets", "/app/asset"], ["Locations", "/app/facility-location"], ["Categories", "/app/asset-category"]], false, "assets")
       + navGroup("Vendors & SLA", [["Providers", "/app/facility-service-provider"], ["Contracts", "/app/facility-service-contract"], ["Quotations", "/app/facility-vendor-quotation"], ["SLA policies", "/app/facility-sla-policy"]], false, "vendors")
       + navGroup("Utilities", [["Meters", "/app/utility-meter"], ["Readings", "/app/utility-reading"], ["Bills", "/app/utility-bill"], ["Budgets", "/app/utility-budget"]], false, "utilities")
-      + navGroup("Analytics", [["Facility Management", "/app/dashboard-view/Facility%20Management%20Dashboard"], ["SLA Performance", "/app/dashboard-view/SLA%20Performance%20Dashboard"], ["Utility Consumption", "/app/dashboard-view/Utility%20Consumption%20Dashboard"]], false, "analytics")
+      + navItem("Analytics", "/dashboard", false, "analytics", true)
       + '    </nav>'
       + '    <a class="cafm-app-workspace-link" href="/app/Workspaces/Facilities">Open Facilities Workspace</a>'
       + '    <button class="cafm-app-collapse" type="button"><span class="cafm-app-collapse-icon"></span><span>Collapse</span></button>'
@@ -67,9 +212,14 @@ frappe.ready(function () {
       + '    <section class="cafm-app-stats">' + stats.map(card => ''
       + '      <button class="cafm-app-stat ' + esc(card.tone) + '" data-route="' + esc(card.route) + '"><small>' + esc(card.label) + '</small><strong>' + esc(card.value) + '</strong><span>' + esc(card.detail) + '</span></button>'
       + '    ').join("") + '</section>'
-      + '    <section class="cafm-app-panel"><header><div><p>ACTIVE WORK</p><h2>Work orders needing attention</h2></div><button class="cafm-app-text-link" data-route="/app/facility-work-order">View all work orders</button></header>'
+      + '    <section class="cafm-home-actions"><div><p>QUICK ACTIONS</p><h2>Start something</h2></div><div>' + (quickActions.length ? quickActions.map(action => '<button data-create-doctype="' + esc(action.doctype) + '">+ ' + esc(action.label) + '</button>').join("") : '<span>No create actions available for your role.</span>') + '</div></section>'
+      + '    <section class="cafm-home-grid">'
+      + '      <article class="cafm-app-panel"><header><div><p>NEEDS ATTENTION</p><h2>Act on these first</h2></div><button class="cafm-app-text-link" data-route="/app/issue">View requests</button></header><div class="cafm-home-list">' + operationalRows(attention, "Nothing urgent", "Critical, overdue, and breached work will appear here.") + '</div></article>'
+      + '      <article class="cafm-app-panel"><header><div><p>TODAY</p><h2>Scheduled for today</h2></div></header><div class="cafm-home-list">' + operationalRows(todayItems, "Nothing scheduled today", "Today's work orders, inspections, and preventive tasks will appear here.") + '</div></article>'
+      + '    </section>'
+      + '    <section class="cafm-app-panel cafm-home-active"><header><div><p>ACTIVE WORK</p><h2>Current work orders</h2></div><button class="cafm-app-text-link" data-route="/app/facility-work-order">View all work orders</button></header>'
       + '      <div class="cafm-app-work-list">' + (orders.length ? orders.map(order => ''
-      + '        <button class="cafm-app-work-row" data-route="/app/facility-work-order/' + esc(order.name) + '">'
+      + '        <button class="cafm-app-work-row" data-preview-doctype="Facility Work Order" data-preview-name="' + esc(order.name) + '" data-route="/app/facility-work-order/' + esc(order.name) + '">'
       + '          <span class="cafm-app-priority ' + esc(String(order.priority || "").toLowerCase()) + '">' + esc(order.priority || "Not set") + '</span>'
       + '          <div><strong>' + esc(order.subject || order.name) + '</strong><small>' + esc(order.facility_location || "No location set") + ' - due ' + esc(order.planned_end || "Not scheduled") + '</small></div>'
       + '          <em>' + esc(order.work_order_status) + '</em><b>></b>'
@@ -79,6 +229,12 @@ frappe.ready(function () {
       + '  </main>'
       + '</div>';
     root.querySelectorAll("[data-route]").forEach(button => button.onclick = () => route(button.dataset.route));
+    root.querySelectorAll("[data-preview-doctype][data-preview-name]").forEach(button => button.onclick = event => {
+      if (!button.dataset.previewDoctype || !button.dataset.previewName) return;
+      event.preventDefault();
+      window.cafmOpenRecordPreview(button.dataset.previewDoctype, button.dataset.previewName);
+    });
+    root.querySelectorAll("[data-create-doctype]").forEach(button => button.onclick = () => window.cafmOpenCreateDrawer(button.dataset.createDoctype));
     root.querySelector(".cafm-app-refresh").onclick = load;
     const shell = root.querySelector(".cafm-app-shell");
     const collapseButton = root.querySelector(".cafm-app-collapse");
@@ -135,6 +291,11 @@ frappe.ready(function () {
       message: "Your facilities workspace for maintenance, assets, vendors, SLA, and utilities.",
       indicator: "blue"
     });
+    root.querySelector(".cafm-app-account-logout").onclick = () => frappe.call({
+      method: "logout",
+      callback: response => { if (!response.exc) route("/login?redirect-to=" + encodeURIComponent(window.location.pathname + window.location.search)); }
+    });
+
 
     collapseButton.onclick = () => {
       accountOpenedFromCollapsed = false;
@@ -165,8 +326,485 @@ frappe.ready(function () {
   load();
 });
 </script>
+
+<script>
+frappe.ready(function(){
+ const root=document.getElementById("cafm-app-view"); if(!root) return;
+ const esc=v=>String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+ const ANALYTICS_COLORS={blue:'#4463F0',green:'#29CD42',amber:'#F59E0B',red:'#E53935',softRed:'#cc6a6a',cyan:'#22B8CF',orange:'#E65100',mediumBlue:'#3B82F6',lowGreen:'#22C55E',critical:'#DC2626',gray:'#64748B',gold:'#ffc300'};
+ const UTILITY_COLORS=['#2E86DE','#22B8CF','#F59E0B','#E65100','#64748B'];
+ const FACILITY_CARD_COLORS=['#4463F0','#4463F0','#cc6a6a','#F59E0B'];
+ const UTILITY_CARD_COLORS=['#2E86DE','#F59E0B','#E53935','#F59E0B','#35B779','#2E86DE','#22B8CF','#F59E0B','#E65100'];
+ const SLA_CARD_COLORS=['#35B779','#F59E0B','#E53935','#2E86DE'];
+ const PRIORITY_MAP={critical:ANALYTICS_COLORS.critical,high:ANALYTICS_COLORS.amber,medium:ANALYTICS_COLORS.mediumBlue,low:ANALYTICS_COLORS.lowGreen};
+ const STATUS_MAP={draft:'#94A3B8',assigned:'#3B82F6','in progress':'#F59E0B',pending:'#E65100',resolved:'#29CD42',closed:'#35B779',cancelled:'#64748B'};
+ const SLA_MAP={'on track':'#35B779','response breached':'#F59E0B','resolution breached':'#E53935',met:'#2E86DE'};
+ const PRIORITY_ORDER=['critical','high','medium','low'];
+ const ASSET_PALETTE=['#4463F0','#22B8CF','#F59E0B','#E65100','#35B779'];
+
+ function paletteFor(rows,map){return (rows||[]).map(row=>map[String(row.label||"").toLowerCase()]||ANALYTICS_COLORS.gray);}
+ function orderedPriorities(rows){return [...(rows||[])].sort((a,b)=>{const ai=PRIORITY_ORDER.indexOf(String(a.label||"").toLowerCase());const bi=PRIORITY_ORDER.indexOf(String(b.label||"").toLowerCase());return (ai<0?99:ai)-(bi<0?99:bi);});}
+ function pairs(source){const labels=(source&&source.labels)||[];const values=(source&&source.datasets&&source.datasets[0]&&source.datasets[0].values)||[];return labels.map((label,i)=>({label,value:values[i]||0}));}
+
+ function numberCard(label,value,color){
+  return '<div class="cafm-kpi" style="--kpi-color:'+esc(color)+'"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong></div>';
+ }
+
+ // ---- real arc geometry (replaces the old dasharray/rotation approximation) ----
+ function polarToCartesian(cx,cy,r,angleDeg){
+  const rad=(angleDeg-90)*Math.PI/180;
+  return {x:cx+r*Math.cos(rad), y:cy+r*Math.sin(rad)};
+ }
+ function describeArc(cx,cy,r,startAngle,endAngle){
+  const start=polarToCartesian(cx,cy,r,endAngle);
+  const end=polarToCartesian(cx,cy,r,startAngle);
+  const largeArcFlag=endAngle-startAngle<=180?"0":"1";
+  return ["M",start.x,start.y,"A",r,r,0,largeArcFlag,0,end.x,end.y].join(" ");
+ }
+
+ function donutChart(rows,colors,opts){
+  opts=opts||{}; rows=rows||[];
+  const total=rows.reduce((sum,r)=>sum+(Number(r.value)||0),0)||1;
+  const isHalf=opts.variant==="half";
+  const cx=110,cy=isHalf?105:110,r=78,stroke=24;
+  const sweep=isHalf?180:360;
+  const baseAngle=isHalf?-90:0;
+  let acc=0;
+  const arcs=rows.map((row,i)=>{
+   const frac=(Number(row.value)||0)/total;
+   const startAngle=baseAngle+acc*sweep;
+   acc+=frac;
+   const endAngle=baseAngle+acc*sweep;
+   if(frac<=0) return "";
+   const clampedEnd=Math.min(endAngle,baseAngle+sweep-0.001);
+   const mid=(startAngle+clampedEnd)/2;
+   const labelPos=polarToCartesian(cx,cy,r,mid);
+   const inline=(opts.showInlineLabels&&frac>0.06)?'<text x="'+labelPos.x+'" y="'+labelPos.y+'" text-anchor="middle" dominant-baseline="middle" class="cafm-donut-inline">'+Math.round(frac*100)+'%</text>':'';
+   return '<path d="'+describeArc(cx,cy,r,startAngle,clampedEnd)+'" fill="none" stroke="'+esc(colors[i])+'" stroke-width="'+stroke+'" stroke-linecap="butt"/>'+inline;
+  }).join("");
+  const viewHeight=isHalf?140:220;
+  const centerLabel=opts.centerLabel?'<text x="'+cx+'" y="'+(isHalf?cy-4:cy)+'" text-anchor="middle" class="cafm-donut-center-num">'+esc(String(total))+'</text><text x="'+cx+'" y="'+(isHalf?cy+14:cy+18)+'" text-anchor="middle" class="cafm-donut-center-label">'+esc(opts.centerLabel)+'</text>':'';
+  const legend=rows.map((row,i)=>'<div class="legend-item"><span class="legend-dot" style="background-color:'+esc(colors[i])+'"></span><span>'+esc(row.label)+'</span><strong>'+esc(row.value)+'</strong></div>').join("");
+  return '<section class="cafm-chart custom-legend">'
+   +'<div class="cafm-chart-head"><h3>'+esc(opts.title||"")+'</h3>'+(opts.subtitle?'<p>'+esc(opts.subtitle)+'</p>':'')+'</div>'
+   +'<div class="cafm-donut-body"><svg viewBox="0 0 220 '+viewHeight+'" class="cafm-donut-svg">'+arcs+centerLabel+'</svg></div>'
+   +'<div class="ordered-legend">'+legend+'</div>'
+   +'</section>';
+ }
+
+ function barChart(rows,color,opts){
+  opts=opts||{}; rows=rows||[];
+  const max=Math.max(1,...rows.map(r=>Number(r.value)||0));
+  const head='<div class="cafm-chart-head"><h3>'+esc(opts.title||"")+'</h3>'+(opts.subtitle?'<p>'+esc(opts.subtitle)+'</p>':'')+'</div>';
+  if(opts.horizontal){
+   const body=rows.map(row=>'<div class="cafm-hbar-row"><span class="cafm-hbar-label">'+esc(row.label)+'</span><i><b style="width:'+((Number(row.value)||0)/max*100)+'%;background:'+esc(color)+'"></b></i><em>'+esc(row.value)+'</em></div>').join("");
+   return '<section class="cafm-chart">'+head+'<div class="cafm-hbar-list">'+body+'</div></section>';
+  }
+  const body=rows.map(row=>'<div class="cafm-vbar-col"><em>'+esc(row.value)+(opts.unit?' '+esc(opts.unit):'')+'</em><div class="cafm-vbar-track"><div class="cafm-vbar-fill" style="height:'+((Number(row.value)||0)/max*100)+'%;background:'+esc(color)+'"></div></div><span>'+esc(row.label)+'</span></div>').join("");
+  return '<section class="cafm-chart">'+head+'<div class="cafm-vbar-list">'+body+'</div></section>';
+ }
+
+ function seriesBarChart(source,colors,opts){
+  opts=opts||{};
+  const labels=(source&&source.labels)||[];
+  const datasets=(source&&source.datasets)||[];
+  const max=Math.max(1,...datasets.flatMap(d=>d.values||[]));
+  const groups=labels.map((label,i)=>{
+   const bars=datasets.map((d,di)=>'<b style="height:'+(((d.values&&d.values[i])||0)/max*100)+'%;background:'+esc(colors[di%colors.length])+'" title="'+esc(d.name||"")+': '+esc((d.values&&d.values[i])||0)+'"></b>').join("");
+   return '<div class="cafm-series-group"><div class="cafm-series-bars">'+bars+'</div><span>'+esc(label)+'</span></div>';
+  }).join("");
+  const legend=datasets.map((d,i)=>'<div class="legend-item"><span class="legend-dot" style="background-color:'+esc(colors[i%colors.length])+'"></span><span>'+esc(d.name||"")+'</span></div>').join("");
+  return '<section class="cafm-chart cafm-chart-wide custom-legend">'
+   +'<div class="cafm-chart-head"><h3>'+esc(opts.title||"")+'</h3>'+(opts.subtitle?'<p>'+esc(opts.subtitle)+'</p>':'')+'</div>'
+   +'<div class="cafm-series-body"><div class="cafm-series-list">'+groups+'</div></div>'
+   +'<div class="ordered-legend">'+legend+'</div>'
+   +'</section>';
+ }
+
+ // ---- real line chart: solid "actual" + dashed "forecast", with a utility selector like the Vue component ----
+ function actualForecastChart(seriesList,colors,opts){
+  opts=opts||{}; seriesList=seriesList||[];
+  const stateKey="__afSelected";
+  function panel(index){
+   const series=seriesList[index]||{labels:[],actual:[],forecast:[],unit:"Usage",utility_type:""};
+   const color=colors[index%colors.length]||"#2E86DE";
+   const labels=series.labels||[];
+   const actual=series.actual||[];
+   const forecast=series.forecast||[];
+   const values=[...actual,...forecast].filter(v=>v!=null);
+   const max=Math.max(1,...values);
+   const min=Math.min(0,...values);
+   const w=680,h=200,padL=8,padR=8,padT=10,padB=26;
+   const stepX=labels.length>1?(w-padL-padR)/(labels.length-1):0;
+   const y=v=>h-padB-((v-min)/(max-min||1))*(h-padT-padB);
+   const x=i=>padL+i*stepX;
+   const linePoints=arr=>arr.map((v,i)=>v==null?null:x(i)+","+y(v)).filter(Boolean).join(" ");
+   const dots=(arr,cls)=>arr.map((v,i)=>v==null?"":'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="3" class="'+cls+'" style="fill:'+color+'"/>').join("");
+   const labelsRow=labels.map((label,i)=>'<text x="'+x(i)+'" y="'+(h-6)+'" text-anchor="middle" class="cafm-line-axis-label">'+esc(String(label).slice(5))+'</text>').join("");
+   return '<svg viewBox="0 0 '+w+' '+h+'" class="cafm-line-svg">'
+    +'<polyline points="'+linePoints(actual)+'" fill="none" stroke="'+color+'" stroke-width="2.5" class="cafm-line-actual"/>'
+    +'<polyline points="'+linePoints(forecast)+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-dasharray="6 5" class="cafm-line-forecast"/>'
+    +dots(actual,"cafm-line-dot-actual")+dots(forecast,"cafm-line-dot-forecast")
+    +labelsRow+'</svg>'
+    +'<div class="cafm-af-legend"><span><i class="solid" style="background:'+color+'"></i>Actual '+esc(series.utility_type||"")+'</span><span><i class="dashed" style="border-color:'+color+'"></i>Forecast</span><span class="cafm-af-unit">'+esc(series.unit||"")+'</span></div>';
+  }
+  const options=seriesList.map((s,i)=>'<option value="'+i+'">'+esc(s.utility_type||"")+' ('+esc(s.unit||"")+')</option>').join("");
+  const uid="af"+Math.random().toString(36).slice(2,8);
+  setTimeout(()=>{
+   const wrap=document.getElementById(uid); if(!wrap) return;
+   const select=wrap.querySelector("select");
+   const body=wrap.querySelector(".cafm-af-body");
+   select.onchange=()=>{ body.innerHTML=panel(Number(select.value)); };
+  });
+  return '<section class="cafm-chart cafm-chart-wide" id="'+uid+'">'
+   +'<div class="cafm-chart-head cafm-chart-head-row"><div><h3>'+esc(opts.title||"")+'</h3>'+(opts.subtitle?'<p>'+esc(opts.subtitle)+'</p>':'')+'</div>'
+   +'<label class="series-picker"><span>Utility</span><select>'+options+'</select></label></div>'
+   +'<div class="cafm-af-body">'+panel(0)+'</div>'
+   +'</section>';
+ }
+
+ // ---- 100%-stacked bar per quarter, top assets as series (matches BarChart stacked="normalized") ----
+ function recurringFailuresChart(mix){
+  mix=mix||[];
+  const quarters=[...new Set(mix.map(r=>r.quarter))];
+  const totalsByAsset={};
+  mix.forEach(r=>{ totalsByAsset[r.asset]=(totalsByAsset[r.asset]||0)+(r.failures||0); });
+  const topAssets=Object.keys(totalsByAsset).sort((a,b)=>totalsByAsset[b]-totalsByAsset[a]).slice(0,5);
+  const colorFor=asset=>ASSET_PALETTE[topAssets.indexOf(asset)%ASSET_PALETTE.length];
+
+  const cols=quarters.map(quarter=>{
+   const rows=topAssets.map(asset=>{
+    const match=mix.find(r=>r.quarter===quarter&&r.asset===asset);
+    return {asset,value:match?match.failures:0};
+   });
+   const total=rows.reduce((s,r)=>s+r.value,0)||1;
+   const segments=rows.map(r=>'<div class="cafm-stack-seg" style="height:'+(r.value/total*100)+'%;background:'+colorFor(r.asset)+'" title="'+esc(r.asset)+': '+r.value+'"></div>').join("");
+   return '<div class="cafm-stack-col"><div class="cafm-stack-track">'+segments+'</div><span>'+esc(quarter)+'</span></div>';
+  }).join("");
+
+  const legend=topAssets.map(asset=>'<div class="legend-item"><span class="legend-dot" style="background-color:'+colorFor(asset)+'"></span><span>'+esc(asset)+'</span></div>').join("");
+  return '<section class="cafm-chart cafm-chart-wide custom-legend">'
+   +'<div class="cafm-chart-head"><h3>Top recurring asset failures</h3><p>Quarterly share of maintenance-history events by asset</p></div>'
+   +'<div class="cafm-stack-body">'+cols+'</div>'
+   +'<div class="ordered-legend">'+legend+'</div>'
+   +'</section>';
+ }
+
+ function renderFacility(data){
+  const stats=(data.stats||[]).map((s,i)=>numberCard(s.label,s.value,FACILITY_CARD_COLORS[i])).join("");
+  const priorityRows=orderedPriorities(data.work_orders_by_priority);
+  const priorityColors=priorityRows.map(r=>PRIORITY_MAP[String(r.label||"").toLowerCase()]||ANALYTICS_COLORS.gray);
+  return '<section class="cafm-kpi-grid">'+stats+'</section>'
+   +'<section class="cafm-chart-grid">'
+   +donutChart(priorityRows,priorityColors,{variant:"half",showInlineLabels:true,title:"Work orders by priority",subtitle:"Current work-order distribution"})
+   +donutChart(data.work_orders_by_status,paletteFor(data.work_orders_by_status,STATUS_MAP),{title:"Work orders by status",subtitle:"Current lifecycle position",centerLabel:"work orders"})
+   +barChart(data.work_orders_by_category,ANALYTICS_COLORS.gold,{horizontal:true,title:"Work orders by category",subtitle:"Most active maintenance categories"})
+   +barChart(data.asset_downtime,ANALYTICS_COLORS.blue,{unit:"Hours",title:"Asset downtime",subtitle:"Recorded downtime by asset"})
+   +recurringFailuresChart(data.recurring_asset_failure_mix)
+   +'</section>';
+ }
+
+ function renderUtility(data){
+  const cards=(data.cards||[]).map((c,i)=>numberCard(c.label,c.value,UTILITY_CARD_COLORS[i])).join("");
+  return '<section class="cafm-kpi-grid cafm-kpi-grid-wide">'+cards+'</section>'
+   +'<section class="cafm-chart-grid">'
+   +seriesBarChart(data.monthly_cost,UTILITY_COLORS,{title:"Monthly utility cost",subtitle:"Cost by utility type"})
+   +actualForecastChart(data.usage_forecast,UTILITY_COLORS,{title:"Actual vs Forecast Utility Consumption",subtitle:"Recorded monthly consumption compared with the rolling forecast"})
+   +'</section>';
+ }
+
+ function renderSla(data){
+  const rows=pairs(data.status_breakdown);
+  const colors=rows.map(r=>SLA_MAP[String(r.label||"").toLowerCase()]||ANALYTICS_COLORS.gray);
+  const cards=(data.cards||[]).map((c,i)=>numberCard(c.label,c.value,SLA_CARD_COLORS[i])).join("");
+  return '<section class="cafm-kpi-grid">'+cards+'</section>'
+   +'<section class="cafm-chart-grid cafm-chart-grid-single">'
+   +donutChart(rows,colors,{variant:"half",showInlineLabels:true,title:"Work orders by SLA status",subtitle:"Current SLA performance"})
+   +'</section>';
+ }
+
+ const ANALYTICS_VIEWS={
+  facility:{label:"Facility Management",method:"get_facility_management_analytics",render:renderFacility},
+  utility:{label:"Utility Consumption",method:"get_utility_consumption_analytics",render:renderUtility},
+  sla:{label:"SLA Performance",method:"get_sla_performance_analytics",render:renderSla}
+ };
+
+ function showAnalytics(){
+  const main=root.querySelector(".cafm-app-main");
+  if(!main){ setTimeout(showAnalytics,100); return; }
+
+  root.querySelectorAll(".cafm-app-nav-item").forEach(item=>{
+   item.classList.toggle("active",item.dataset.route==="/dashboard");
+  });
+  main.classList.add("cafm-app-main-analytics");
+  main.innerHTML='<div class="cafm-dashboard-embed">'
+   +'<div class="cafm-dashboard-embed-loading">Loading analytics...</div>'
+   +'<iframe src="/dashboard" title="CAFM analytics dashboard"></iframe>'
+   +'</div>';
+
+  const frame=main.querySelector("iframe");
+  frame.addEventListener("load",()=>{
+   main.querySelector(".cafm-dashboard-embed-loading")?.remove();
+   frame.classList.add("is-ready");
+  });
+  history.replaceState({},"","/cafm?section=analytics");
+ }
+
+ root.addEventListener("click",e=>{
+  const item=e.target.closest('[data-route="/dashboard"]');
+  if(item){e.preventDefault();e.stopImmediatePropagation();showAnalytics();}
+ },true);
+ if(new URLSearchParams(location.search).get("section")==="analytics"){
+  showAnalytics();
+ }
+});
+</script>
+
+<script>
+frappe.ready(function(){
+ const root=document.getElementById("cafm-app-view"); if(!root) return;
+ const esc=v=>String(v||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+ const badgeTheme=(value,fieldname)=>{const text=String(value??"").toLowerCase();if(/critical|breach|overdue|rejected|cancelled|expired|failed/.test(text))return "red";if(/high|in progress|pending|due soon/.test(text))return "amber";if(/resolved|closed|completed|met|on track|approved|matched/.test(text))return "green";if(/low/.test(text))return "teal";if(/medium|assigned|new|draft|open/.test(text))return "blue";if(/type/.test(String(fieldname||"").toLowerCase()))return "violet";return "gray";};
+ const badge=(value,fieldname)=>{const text=value===null||value===undefined||value===""?"Not set":String(value);const checked=/resolved|closed|completed|met|on track|approved|matched/.test(text.toLowerCase());return '<span class="cafm-subtle-badge '+badgeTheme(text,fieldname)+'">'+(checked?'<span class="cafm-subtle-badge-icon" aria-hidden="true">&#10003;</span>':'')+'<span>'+esc(text)+'</span></span>';};
+ const requestDate=value=>value&&frappe.datetime?frappe.datetime.str_to_user(value):value||"-";
+ function closeRequestPreview(){const preview=root.querySelector(".cafm-record-preview");if(!preview||preview.classList.contains("is-closing"))return;preview.classList.add("is-closing");setTimeout(()=>preview.remove(),180);}
+ function showRequestPreview(name){
+  closeRequestPreview();
+  root.insertAdjacentHTML("beforeend",'<div class="cafm-record-preview" role="dialog" aria-modal="true" aria-label="Maintenance request details"><button class="cafm-record-preview-backdrop" data-preview-close aria-label="Close"></button><section class="cafm-record-preview-panel"><div class="cafm-record-preview-loading">Loading request...</div></section></div>');
+  const preview=root.querySelector(".cafm-record-preview");
+  preview.querySelector("[data-preview-close]").onclick=closeRequestPreview;
+  frappe.call({method:"cafm.api.get_cafm_request_detail",args:{name},callback:response=>{
+   const item=response.message||{};
+   const value=(label,content)=>'<div class="cafm-record-preview-field"><small>'+esc(label)+'</small><strong>'+esc(content||"-")+'</strong></div>';
+   const linked=item.work_order?'<button class="cafm-record-preview-related" data-open-work-order="'+esc(item.work_order)+'"><span>Linked work order</span><strong>'+esc(item.work_order)+'</strong><b>&gt;</b></button>':'';
+   preview.querySelector(".cafm-record-preview-panel").innerHTML='<header><div><p>MAINTENANCE REQUEST</p><h2>'+esc(item.subject||item.name)+'</h2><span>'+esc(item.name)+'</span></div><button type="button" data-preview-close aria-label="Close">&times;</button></header>'
+    +'<div class="cafm-record-preview-badges">'+badge(item.priority,"priority")+badge(item.status,"status")+badge(item.category,"type")+'</div>'
+    +'<div class="cafm-record-preview-grid">'+value("Facility location",item.facility_location)+value("Asset",item.asset)+value("Company",item.company)+value("Raised by",item.raised_by)+value("Created",requestDate(item.creation))+value("Last updated",requestDate(item.modified))+'</div>'
+    +'<section class="cafm-record-preview-description"><small>DESCRIPTION</small><p>'+esc(item.description||"No description provided.")+'</p></section>'
+    +linked
+    +'<footer><button type="button" class="cafm-record-preview-secondary" data-preview-close>Close</button><button type="button" class="cafm-record-preview-primary" data-open-request="'+esc(item.name)+'">Open full record</button></footer>';
+   preview.querySelectorAll("[data-preview-close]").forEach(button=>button.onclick=closeRequestPreview);
+   preview.querySelector("[data-open-request]").onclick=()=>window.location.href="/app/issue/"+encodeURIComponent(item.name);
+   const workOrder=preview.querySelector("[data-open-work-order]");if(workOrder)workOrder.onclick=()=>window.location.href="/app/facility-work-order/"+encodeURIComponent(workOrder.dataset.openWorkOrder);
+  },error:()=>{preview.querySelector(".cafm-record-preview-panel").innerHTML='<div class="cafm-record-preview-error"><h2>Could not load request</h2><p>You may not have permission to view this record.</p><button data-preview-close>Close</button></div>';preview.querySelector("[data-preview-close]").onclick=closeRequestPreview;}});
+ }
+ function showRequests(){
+  root.querySelectorAll(".cafm-app-nav-item").forEach(item=>item.classList.toggle("active",item.dataset.route==="/app/issue"));
+  const requestMain=root.querySelector(".cafm-app-main");if(!requestMain)return;
+  requestMain.classList.remove("cafm-app-main-analytics");
+  requestMain.innerHTML='<div class="cafm-app-loading">Loading maintenance requests...</div>';
+  frappe.call({method:"cafm.api.get_cafm_maintenance_requests",callback:r=>{
+   const data=r.message||{}, rows=data.requests||[];
+   const statusCount={New:0,"In Progress":0,Resolved:0,Other:0};
+   const priorityCount={Critical:0,High:0,Medium:0,Low:0};
+   rows.forEach(x=>{const status=x.custom_issue_status||"New";if(statusCount[status]!==undefined)statusCount[status]++;else statusCount.Other++;const priority=x.priority||"Low";if(priorityCount[priority]!==undefined)priorityCount[priority]++;});
+   const table=rows.map(x=>'<tr data-search="'+esc((x.name+" "+(x.subject||"")).toLowerCase())+'"><td><button class="cafm-record-link" data-request-id="'+esc(x.name)+'">'+esc(x.name)+'</button></td><td><button class="cafm-record-link" data-request-id="'+esc(x.name)+'">'+esc(x.subject||x.name)+'</button></td><td>'+badge(x.priority||"Not set","priority")+'</td><td>'+badge(x.custom_issue_status||"New","status")+'</td><td>'+esc(x.custom_facility_location||"-")+'</td><td>'+badge(x.issue_type||"Not set","type")+'</td><td>'+esc(frappe.datetime.str_to_user(x.modified))+'</td></tr>').join("");
+   const cards=rows.map(x=>'<button class="cafm-request-card" data-search="'+esc((x.name+" "+(x.subject||"")).toLowerCase())+'" data-request-id="'+esc(x.name)+'"><small>'+esc(x.name)+'</small><strong>'+esc(x.subject||x.name)+'</strong><span class="cafm-request-card-badges">'+badge(x.priority||"Not set","priority")+badge(x.custom_issue_status||"New","status")+'</span></button>').join("");
+   const dashboard='<section class="cafm-request-dashboard"><div class="cafm-request-metric"><small>OPEN REQUESTS</small><strong>'+((statusCount.New||0)+(statusCount["In Progress"]||0))+'</strong><span>New or in progress</span></div><div class="cafm-request-metric"><small>RESOLVED</small><strong>'+statusCount.Resolved+'</strong><span>Completed requests</span></div><div class="cafm-request-metric"><small>HIGH PRIORITY</small><strong>'+((priorityCount.High||0)+(priorityCount.Critical||0))+'</strong><span>High and critical</span></div><div class="cafm-request-chart"><h3>Requests by status</h3>'+Object.keys(statusCount).map(k=>'<div class="cafm-request-bar"><span>'+esc(k)+'</span><i><b style="width:'+((statusCount[k]/Math.max(rows.length,1))*100)+'%"></b></i><em>'+statusCount[k]+'</em></div>').join("")+'</div><div class="cafm-request-chart"><h3>Requests by priority</h3>'+Object.keys(priorityCount).map(k=>'<div class="cafm-request-bar"><span>'+esc(k)+'</span><i><b class="priority-bar '+esc(k.toLowerCase())+'" style="width:'+((priorityCount[k]/Math.max(rows.length,1))*100)+'%"></b></i><em>'+priorityCount[k]+'</em></div>').join("")+'</div></section>';
+   const board='<section class="cafm-request-board">'+["New","In Progress","Resolved","Other"].map(k=>'<div class="cafm-request-lane"><header><strong>'+esc(k)+'</strong><span>'+statusCount[k]+'</span></header>'+rows.filter(x=>{const v=x.custom_issue_status||"New";return (statusCount[v]!==undefined?v:"Other")===k;}).map(x=>'<button type="button" data-request-id="'+esc(x.name)+'"><small>'+esc(x.name)+'</small><b>'+esc(x.subject||x.name)+'</b><span class="cafm-request-card-badges">'+badge(x.priority||"Not set","priority")+'</span></button>').join("")+'</div>').join("")+'</section>';
+   const main=root.querySelector(".cafm-app-main"); if(!main) return;
+   main.classList.remove("cafm-app-main-analytics");
+   main.innerHTML='<header class="cafm-app-header"><div><p>MAINTENANCE</p><h1>Maintenance requests</h1><span>Search, review, and create facility requests.</span></div><div class="cafm-request-actions"><button class="cafm-app-refresh" type="button" data-request-refresh><span>&#8635;</span><em>Refresh</em></button>'+(data.can_create?'<button class="cafm-request-create" data-request-create>+ Create request</button>':'')+'</div></header><section class="cafm-request-toolbar"><input type="search" data-request-search placeholder="Search by subject or ID"><div class="cafm-request-view-menu"><span>View</span><button type="button" data-request-view-button aria-expanded="false">Table <b>&#8964;</b></button><div class="cafm-view-options" data-request-view-options hidden><button type="button" data-request-mode="table">Table</button><button type="button" data-request-mode="dashboard">Dashboard</button><button type="button" data-request-mode="kanban">Kanban</button></div></div><span>'+rows.length+' requests</span></section>'+dashboard+board+'<section class="cafm-request-list" data-request-list><div class="cafm-request-table-wrap"><table><thead><tr><th>ID</th><th>Subject</th><th>Priority</th><th>Status</th><th>Location</th><th>Category</th><th>Last updated</th></tr></thead><tbody>'+table+'</tbody></table></div><div class="cafm-request-cards">'+cards+'</div></section>';
+
+   main.querySelectorAll("[data-request-id]").forEach(button=>button.onclick=event=>{event.preventDefault();showRequestPreview(button.dataset.requestId);});
+   const create=main.querySelector("[data-request-create]"); if(create) create.onclick=()=>window.cafmOpenCreateDrawer("Issue");
+   main.querySelector("[data-request-search]").oninput=e=>{const q=e.target.value.toLowerCase();main.querySelectorAll("[data-search]").forEach(el=>el.style.display=!q||el.dataset.search.includes(q)?"":"none")};
+   const viewButton=main.querySelector("[data-request-view-button]");const viewOptions=main.querySelector("[data-request-view-options]");const applyView=mode=>{const list=main.querySelector("[data-request-list]");list.classList.remove("cards");main.querySelector(".cafm-request-dashboard").classList.toggle("visible",mode==="dashboard");main.querySelector(".cafm-request-board").classList.toggle("visible",mode==="kanban");list.style.display=(mode==="dashboard"||mode==="kanban")?"none":"";viewButton.firstChild.nodeValue={table:"Table",dashboard:"Dashboard",kanban:"Kanban"}[mode]+" ";viewOptions.hidden=true;viewButton.setAttribute("aria-expanded","false");};viewButton.onclick=()=>{viewOptions.style.width=viewButton.offsetWidth+"px";const open=viewOptions.hidden;viewOptions.hidden=!open;viewButton.setAttribute("aria-expanded",open?"true":"false");};viewOptions.querySelectorAll("[data-request-mode]").forEach(button=>button.onclick=()=>applyView(button.dataset.requestMode));
+  },error:()=>{requestMain.innerHTML='<div class="cafm-app-error"><h2>Could not load maintenance requests</h2><p>Please try again.</p><button type="button" class="cafm-app-refresh" data-request-refresh><span>&#8635;</span><em>Retry</em></button></div>';}});
+ }
+ root.addEventListener("click",e=>{const refresh=e.target.closest('[data-request-refresh]');if(refresh){e.preventDefault();e.stopImmediatePropagation();showRequests();return;}const item=e.target.closest('[data-route="/app/issue"]');if(item){e.preventDefault();e.stopImmediatePropagation();showRequests();}},true);
+});
+</script>
+
+<script>
+frappe.ready(function(){
+ const root=document.getElementById("cafm-app-view"); if(!root) return;
+ const esc=value=>String(value??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+ const badgeTheme=(value,fieldname)=>{const text=String(value??"").toLowerCase();const field=String(fieldname||"").toLowerCase();if(/frequency/.test(field)){if(/daily/.test(text))return "red";if(/weekly/.test(text))return "amber";if(/monthly/.test(text))return "blue";if(/quarterly|biannual|semi-annual/.test(text))return "violet";if(/yearly|annual/.test(text))return "green";return "teal";}if(/critical|breach|overdue|rejected|cancelled|expired|failed/.test(text))return "red";if(/high|in progress|pending|due soon/.test(text))return "amber";if(/resolved|closed|completed|met|on track|approved|matched/.test(text))return "green";if(/low/.test(text))return "teal";if(/medium|assigned|new|draft|open/.test(text))return "blue";if(/type/.test(String(fieldname||"").toLowerCase()))return "violet";return "gray";};
+ const badge=(value,fieldname)=>{const text=value===null||value===undefined||value===""?"Not set":String(value);const checked=/resolved|closed|completed|met|on track|approved|matched/.test(text.toLowerCase());return '<span class="cafm-subtle-badge '+badgeTheme(text,fieldname)+'">'+(checked?'<span class="cafm-subtle-badge-icon" aria-hidden="true">&#10003;</span>':'')+'<span>'+esc(text)+'</span></span>';};
+ const isBadgeField=fieldname=>/(priority|status|type|frequency)/.test(String(fieldname||"").toLowerCase());
+ const views={
+  "/app/facility-work-order":{doctype:"Facility Work Order",label:"Work orders"},
+  "/app/preventive-maintenance-plan":{doctype:"Preventive Maintenance Plan",label:"Preventive maintenance"},
+  "/app/facility-inspection":{doctype:"Facility Inspection",label:"Inspections"},
+  "/app/asset":{doctype:"Asset",label:"Assets"},
+  "/app/facility-location":{doctype:"Facility Location",label:"Locations"},
+  "/app/asset-category":{doctype:"Asset Category",label:"Asset categories"},
+  "/app/facility-service-provider":{doctype:"Facility Service Provider",label:"Service providers"},
+  "/app/facility-service-contract":{doctype:"Facility Service Contract",label:"Service contracts"},
+  "/app/facility-vendor-quotation":{doctype:"Facility Vendor Quotation",label:"Vendor quotations"},
+  "/app/facility-sla-policy":{doctype:"Facility SLA Policy",label:"SLA policies"},
+  "/app/utility-meter":{doctype:"Utility Meter",label:"Utility meters"},
+  "/app/utility-reading":{doctype:"Utility Reading",label:"Utility readings"},
+  "/app/utility-bill":{doctype:"Utility Bill",label:"Utility bills"},
+  "/app/utility-budget":{doctype:"Utility Budget",label:"Utility budgets"}
+ };
+
+ function showDoctype(route){
+  const config=views[route]; if(!config) return;
+  const main=root.querySelector(".cafm-app-main");
+  if(!main){setTimeout(()=>showDoctype(route),100);return;}
+  main.classList.remove("cafm-app-main-analytics");
+  root.querySelectorAll(".cafm-app-nav-item").forEach(item=>item.classList.toggle("active",item.dataset.route===route));
+  main.innerHTML='<div class="cafm-app-loading">Loading '+esc(config.label.toLowerCase())+'...</div>';
+
+  frappe.call({
+   method:"cafm.api.get_cafm_doctype_view",
+   args:{doctype:config.doctype},
+   callback:response=>renderDoctype(route,config,response.message||{}),
+   error:error=>{
+    const message=error&&error.message?error.message:"Unable to load records.";
+    main.innerHTML='<div class="cafm-app-error"><h2>'+esc(config.label)+'</h2><p>'+esc(message)+'</p></div>';
+   }
+  });
+ }
+
+ function renderDoctype(route,config,data){
+  const main=root.querySelector(".cafm-app-main"); if(!main) return;
+  const rows=data.rows||[],columns=data.columns||[];
+  const groupField=data.group_field;
+  const appRoute=route;
+  const display=value=>{
+   if(value===null||value===undefined||value==="")return "-";
+   return String(value);
+  };
+  const recordUrl=name=>appRoute+"/"+encodeURIComponent(name);
+  const searchText=row=>columns.map(column=>display(row[column.fieldname])).join(" ").toLowerCase();
+
+  const header=columns.map(column=>'<th>'+esc(column.label)+'</th>').join("");
+  const tableRows=rows.map(row=>'<tr data-record-search="'+esc(searchText(row))+'" data-generic-preview-name="'+esc(row.name)+'">'+columns.map((column,index)=>{
+   const text=display(row[column.fieldname]);
+   const content=isBadgeField(column.fieldname)?badge(text,column.fieldname):esc(text);
+   return '<td>'+(index===0?'<button class="cafm-record-link" type="button">'+esc(text)+'</button>':content)+'</td>';
+  }).join("")+'</tr>').join("");
+
+  const groups={};
+  rows.forEach(row=>{
+   const label=groupField?display(row[groupField]):"All records";
+   (groups[label]||(groups[label]=[])).push(row);
+  });
+  const groupEntries=Object.entries(groups).sort((left,right)=>right[1].length-left[1].length);
+  const top=groupEntries[0]||["No group",[]];
+  const dashboard='<section class="cafm-request-dashboard">'
+   +'<div class="cafm-request-metric"><small>TOTAL RECORDS</small><strong>'+rows.length+'</strong><span>Visible to your account</span></div>'
+   +'<div class="cafm-request-metric"><small>GROUPS</small><strong>'+groupEntries.length+'</strong><span>'+(groupField?esc(columns.find(column=>column.fieldname===groupField)?.label||groupField):"All records")+'</span></div>'
+   +'<div class="cafm-request-metric"><small>LARGEST GROUP</small><strong>'+top[1].length+'</strong><span>'+esc(top[0])+'</span></div>'
+   +'<div class="cafm-request-chart"><h3>'+esc(config.label)+' by '+esc(groupField?(columns.find(column=>column.fieldname===groupField)?.label||groupField):"record group")+'</h3>'
+   +groupEntries.map(entry=>'<div class="cafm-request-bar"><span>'+esc(entry[0])+'</span><i><b style="width:'+((entry[1].length/Math.max(rows.length,1))*100)+'%"></b></i><em>'+entry[1].length+'</em></div>').join("")
+   +'</div></section>';
+
+  const board='<section class="cafm-request-board">'+groupEntries.map(entry=>'<div class="cafm-request-lane"><header><strong>'+esc(entry[0])+'</strong><span>'+entry[1].length+'</span></header>'
+   +entry[1].map(row=>'<button type="button" data-generic-preview-name="'+esc(row.name)+'"><small>'+esc(row.name)+'</small><b>'+esc(row[data.title_field]||row.name)+'</b><span class="cafm-request-card-badges">'+(isBadgeField(groupField)?badge(display(row[groupField]),groupField):'<span>'+esc(config.doctype)+'</span>')+'</span></button>').join("")
+   +'</div>').join("")+'</section>';
+
+  main.innerHTML='<header class="cafm-app-header"><div><p>CAFM RECORDS</p><h1>'+esc(config.label)+'</h1><span>Search, review, create, and analyse '+esc(config.label.toLowerCase())+'.</span></div><div class="cafm-request-actions"><button class="cafm-app-refresh" type="button" data-generic-refresh><span>&#8635;</span><em>Refresh</em></button>'+(data.can_create?'<button class="cafm-request-create" data-generic-create>+ Create '+esc(config.doctype)+'</button>':'')+'</div></header>'
+   +'<section class="cafm-request-toolbar"><input type="search" data-generic-search placeholder="Search by ID or displayed fields"><div class="cafm-request-view-menu"><span>View</span><button type="button" data-generic-view-button aria-expanded="false">Table <b>&#8964;</b></button><div class="cafm-view-options" data-generic-view-options hidden><button type="button" data-generic-mode="table">Table</button><button type="button" data-generic-mode="dashboard">Dashboard</button><button type="button" data-generic-mode="kanban">Kanban</button></div></div><span>'+rows.length+' records</span></section>'
+   +dashboard+board+'<section class="cafm-request-list" data-generic-list><div class="cafm-request-table-wrap"><table><thead><tr>'+header+'</tr></thead><tbody>'+tableRows+'</tbody></table></div></section>';
+
+  main.querySelector("[data-generic-refresh]").onclick=event=>{event.preventDefault();event.stopPropagation();const currentRoute=route;requestAnimationFrame(()=>showDoctype(currentRoute));};
+  main.querySelectorAll("[data-generic-preview-name]").forEach(button=>button.onclick=event=>{event.preventDefault();window.cafmOpenRecordPreview(config.doctype,button.dataset.genericPreviewName);});
+  const create=main.querySelector("[data-generic-create]"); if(create)create.onclick=()=>window.cafmOpenCreateDrawer(config.doctype);
+  main.querySelector("[data-generic-search]").oninput=event=>{
+   const query=event.target.value.toLowerCase();
+   main.querySelectorAll("[data-record-search]").forEach(element=>element.style.display=!query||element.dataset.recordSearch.includes(query)?"":"none");
+  };
+
+  const viewButton=main.querySelector("[data-generic-view-button]");
+  const viewOptions=main.querySelector("[data-generic-view-options]");
+  const applyView=mode=>{
+   main.querySelector(".cafm-request-dashboard").classList.toggle("visible",mode==="dashboard");
+   main.querySelector(".cafm-request-board").classList.toggle("visible",mode==="kanban");
+   main.querySelector("[data-generic-list]").style.display=mode==="table"?"":"none";
+   viewButton.firstChild.nodeValue={table:"Table",dashboard:"Dashboard",kanban:"Kanban"}[mode]+" ";
+   viewOptions.hidden=true;
+   viewButton.setAttribute("aria-expanded","false");
+  };
+  viewButton.onclick=()=>{
+   viewOptions.style.width=viewButton.offsetWidth+"px";
+   const opening=viewOptions.hidden;
+   viewOptions.hidden=!opening;
+   viewButton.setAttribute("aria-expanded",opening?"true":"false");
+  };
+  viewOptions.querySelectorAll("[data-generic-mode]").forEach(button=>button.onclick=()=>applyView(button.dataset.genericMode));
+  history.replaceState({},"","/cafm?section="+encodeURIComponent(config.doctype));
+ }
+
+ root.addEventListener("click",event=>{
+  const item=event.target.closest("[data-route]");
+  const route=item&&item.dataset.route;
+  if(!views[route])return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  showDoctype(route);
+ },true);
+
+ const requested=new URLSearchParams(location.search).get("section");
+ const route=Object.keys(views).find(key=>views[key].doctype===requested);
+ if(route)showDoctype(route);
+});
+</script>
+
+<style>.cafm-request-actions{display:flex;gap:10px}.cafm-request-create{min-height:46px;padding:10px 16px;border:0;border-radius:11px;background:#14639d;color:#fff;font-weight:800}.cafm-request-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:16px;padding:12px;border:1px solid #dce7ee;border-radius:13px;background:#fff}.cafm-request-toolbar input{flex:1;min-width:220px;height:40px;padding:0 12px;border:1px solid #cfe0ec;border-radius:8px}.cafm-request-toolbar select{height:40px;border:1px solid #cfe0ec;border-radius:8px}.cafm-request-list{border:1px solid #dce7ee;border-radius:14px;background:#fff;overflow:hidden}.cafm-request-table-wrap{overflow:auto}.cafm-request-list table{width:100%;border-collapse:collapse;white-space:nowrap}.cafm-request-list th{padding:11px 13px;background:#edf6fa;color:#487391;text-align:left;font-size:11px}.cafm-request-list td{padding:12px 13px;border-top:1px solid #e6eef4;color:#49647a;font-size:12px}.cafm-request-list a{color:#1b6397;font-weight:700}.cafm-request-cards{display:none;padding:12px}.cafm-request-list.cards .cafm-request-table-wrap{display:none}.cafm-request-list.cards .cafm-request-cards{display:grid;gap:10px}.cafm-request-card{display:grid;gap:4px;padding:14px;border:1px solid #e0eaf1;border-radius:11px}.cafm-request-card small,.cafm-request-card span{color:#6f8799;font-size:11px}.cafm-request-card strong{color:#24455f}@media(max-width:760px){.cafm-request-toolbar{flex-wrap:wrap}.cafm-request-toolbar input{min-width:100%}}.cafm-request-dashboard,.cafm-request-board{display:none}.cafm-request-dashboard.visible{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.cafm-request-metric,.cafm-request-chart{padding:16px;border:1px solid #dce7ee;border-radius:13px;background:#fff}.cafm-request-metric small{display:block;color:#55748e;font-size:10px;font-weight:800}.cafm-request-metric strong{display:block;margin:7px 0 3px;color:#1e5f91;font-size:28px}.cafm-request-metric span{color:#71869a;font-size:11px}.cafm-request-chart{grid-column:span 3}.cafm-request-chart h3{margin:0 0 12px;color:#294a63;font-size:14px}.cafm-request-bar{display:grid;grid-template-columns:100px 1fr 25px;gap:9px;align-items:center;margin:9px 0;color:#547087;font-size:11px}.cafm-request-bar i{height:10px;overflow:hidden;border-radius:99px;background:#e8f1f6}.cafm-request-bar b{display:block;height:100%;min-width:3px;border-radius:99px;background:#2e83bf}.cafm-request-bar b.high,.cafm-request-bar b.critical{background:#db7655}.cafm-request-bar b.medium{background:#d7a931}.cafm-request-bar b.low{background:#43a779}.cafm-request-bar em{font-style:normal;text-align:right}.cafm-request-board.visible{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:12px;overflow:auto}.cafm-request-lane{min-height:280px;padding:11px;border:1px solid #dce7ee;border-radius:13px;background:#eef5f9}.cafm-request-lane header{display:flex;justify-content:space-between;margin-bottom:10px;color:#315570;font-size:12px}.cafm-request-lane header span{display:grid;place-items:center;width:21px;height:21px;border-radius:50%;background:#d6e7f1;font-size:10px}.cafm-request-lane a{display:grid;gap:4px;margin:8px 0;padding:10px;border:1px solid #dbe7ef;border-radius:9px;background:#fff;color:#34546b}.cafm-request-lane a:hover{border-color:#7db4d8;text-decoration:none}.cafm-request-lane small{color:#71869a;font-size:10px}.cafm-request-lane b{font-size:12px}.cafm-request-lane em{color:#296993;font-size:10px;font-style:normal}@media(max-width:760px){.cafm-request-dashboard.visible{grid-template-columns:1fr}.cafm-request-chart{grid-column:auto}.cafm-request-board.visible{grid-template-columns:repeat(4,230px)}}
+.cafm-request-toolbar{background:#f8fbfe!important;border-color:#c9dfed!important;box-shadow:0 3px 10px rgba(25,91,137,.05)}.cafm-request-toolbar input{background:#eaf4fb!important;border-color:#a9cde4!important;color:#173d5a!important;box-shadow:inset 0 1px 2px rgba(17,75,114,.05)}.cafm-request-toolbar input:focus{outline:0;border-color:#3b86b9!important;box-shadow:0 0 0 3px rgba(58,139,192,.14)}.cafm-request-toolbar label{color:#245a7f!important}.cafm-request-toolbar select{background:#eaf4fb!important;border-color:#a9cde4!important;color:#173d5a!important;font-weight:700}.cafm-request-toolbar select:focus{outline:0;border-color:#3b86b9!important}.cafm-request-list.cards{margin-top:16px}.cafm-request-list.cards:before{content:"REQUEST CARDS";display:block;padding:13px 14px 0;color:#487391;font-size:11px;font-weight:800;letter-spacing:.4px}
+.cafm-request-toolbar label{display:flex!important;align-items:center!important;height:40px;margin:0!important;line-height:1}.cafm-request-toolbar label select{margin:0!important;align-self:center}.cafm-request-list.cards:before{display:none!important}
+.cafm-request-toolbar label{margin-left:8px!important;margin-right:6px!important}
+.cafm-request-toolbar label{gap:10px!important}.cafm-request-toolbar select{min-width:118px!important;padding:0 34px 0 12px!important;border-radius:9px!important;appearance:none!important;background-color:#eaf4fb!important;background-image:linear-gradient(45deg,transparent 50%,#24618a 50%),linear-gradient(135deg,#24618a 50%,transparent 50%)!important;background-position:calc(100% - 17px) 17px,calc(100% - 12px) 17px!important;background-size:5px 5px,5px 5px!important;background-repeat:no-repeat!important;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,background-color .16s ease}.cafm-request-toolbar select:hover{background-color:#dfeffc!important;border-color:#6fa8cc!important}.cafm-request-toolbar select:focus{box-shadow:0 0 0 3px rgba(58,139,192,.16)!important}
+.cafm-request-toolbar select option{padding:10px 12px!important;background:#f8fbfe!important;color:#173d5a!important;font-weight:700}.cafm-request-toolbar select option:checked{background:#176cac!important;color:#fff!important}.cafm-request-toolbar select option:hover{background:#dfeffc!important;color:#173d5a!important}
+.cafm-request-view-menu{position:relative;display:flex;align-items:center;gap:10px;height:40px;margin:0 6px;color:#245a7f;font-size:12px;font-weight:700}.cafm-request-view-menu>button{display:flex;align-items:center;justify-content:space-between;gap:18px;min-width:122px;height:40px;padding:0 12px;border:1px solid #a9cde4;border-radius:9px;background:#eaf4fb;color:#173d5a;font-weight:800;cursor:pointer}.cafm-request-view-menu>button:hover{background:#dfeffc;border-color:#6fa8cc}.cafm-request-view-menu>button b{color:#24618a;font-size:14px;font-weight:400;transition:transform .16s ease}.cafm-request-view-menu>button[aria-expanded="true"] b{transform:rotate(180deg)}.cafm-request-view-menu [data-request-view-options]{position:absolute;top:calc(100% + 7px);left:34px;z-index:20;display:grid;width:150px;padding:7px;border:1px solid #c5ddeb;border-radius:11px;background:#f8fbfe;box-shadow:0 12px 25px rgba(31,82,116,.18);opacity:1;transform:translateY(0);transition:opacity .16s ease,transform .16s ease}.cafm-request-view-menu [data-request-view-options][hidden]{display:none}.cafm-request-view-menu [data-request-view-options] button{padding:9px 10px;border:0;border-radius:7px;background:transparent;color:#214d6d;text-align:left;font-size:12px;font-weight:700;cursor:pointer}.cafm-request-view-menu [data-request-view-options] button:hover{background:#dceef9;color:#145c91}.cafm-request-toolbar label{display:none!important}.cafm-request-toolbar select{display:none!important}
+.cafm-analytics-tabs{display:flex;gap:8px;margin-bottom:20px;padding:6px;border:1px solid #d5e3ec;border-radius:12px;background:#fff;width:max-content}.cafm-analytics-tab{border:0;border-radius:8px;background:transparent;color:#547187;padding:9px 15px;font-weight:700;cursor:pointer}.cafm-analytics-tab.active{background:#0f6da8;color:#fff}
+.cafm-kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:20px}.cafm-kpi-grid-wide{grid-template-columns:repeat(5,minmax(0,1fr))}.cafm-kpi{padding:16px;border:1px solid #dce7ee;border-radius:14px;background:#fff;border-left:4px solid var(--kpi-color,#4463F0)}.cafm-kpi small{display:block;color:#55748e;font-size:11px;font-weight:800;text-transform:uppercase}.cafm-kpi strong{display:block;margin-top:6px;color:#173650;font-size:24px}
+.cafm-chart-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.cafm-chart-grid-single{grid-template-columns:minmax(0,760px);justify-content:center}
+.cafm-chart{padding:16px;border:1px solid #dce7ee;border-radius:14px;background:#fff;transition:box-shadow .15s ease,transform .15s ease}
+.cafm-chart:hover{box-shadow:0 8px 20px rgba(20,58,87,.08)}
+.cafm-chart-wide{grid-column:1/-1}
+.cafm-chart-head h3{margin:0;color:#193a56;font-size:15px}
+.cafm-chart-head p{margin:4px 0 0;color:#71869a;font-size:11px}
+.cafm-chart-head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px}
+.custom-legend{display:flex;flex-direction:column}
+.ordered-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 18px;margin-top:12px;padding:0 8px;color:#47647a;font-size:12px}
+.legend-item{display:flex;align-items:center;gap:6px}
+.legend-item strong{color:#173650;font-variant-numeric:tabular-nums}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px}
+.cafm-donut-body{display:flex;justify-content:center;padding:8px 0}
+.cafm-donut-svg{width:220px;height:auto}
+.cafm-donut-inline{font-size:10px;fill:#fff;font-weight:700}
+.cafm-donut-center-num{font-size:20px;font-weight:800;fill:#173650}
+.cafm-donut-center-label{font-size:10px;fill:#71869a}
+.cafm-hbar-list{display:grid;gap:10px;margin-top:14px}
+.cafm-hbar-row{display:grid;grid-template-columns:110px 1fr 34px;gap:9px;align-items:center;font-size:11px;color:#547087}
+.cafm-hbar-row i{height:12px;border-radius:99px;background:#eef4f8;overflow:hidden}
+.cafm-hbar-row b{display:block;height:100%;border-radius:99px;transition:width .3s ease}
+.cafm-vbar-list{display:flex;gap:16px;align-items:flex-end;height:190px;padding-top:10px;margin-top:6px}
+.cafm-vbar-col{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;height:100%;justify-content:flex-end}
+.cafm-vbar-track{width:26px;height:130px;display:flex;align-items:flex-end;background:#eef4f8;border-radius:6px;overflow:hidden}
+.cafm-vbar-fill{width:100%;border-radius:6px 6px 0 0;transition:height .3s ease}
+.cafm-vbar-col em{font-style:normal;font-size:11px;color:#173650;font-weight:700}
+.cafm-vbar-col span{font-size:10px;color:#71869a;text-align:center}
+.cafm-series-body{margin-top:10px}
+.cafm-series-list{display:flex;gap:14px;align-items:flex-end;height:170px;overflow-x:auto}
+.cafm-series-group{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:44px}
+.cafm-series-bars{display:flex;gap:2px;align-items:flex-end;height:140px}
+.cafm-series-bars b{display:block;width:6px;border-radius:3px 3px 0 0;transition:height .3s ease}
+.cafm-series-group span{font-size:10px;color:#71869a}
+.series-picker{display:flex;align-items:center;gap:7px;color:#547187;font-size:12px;flex:0 0 auto}
+.series-picker select{border:1px solid #c9dbe7;border-radius:8px;background:#f7fbfd;color:#173650;padding:6px 28px 6px 9px;font-size:12px}
+.cafm-line-svg{width:100%;height:180px;margin-top:8px}
+.cafm-line-axis-label{font-size:9px;fill:#8399ab}
+.cafm-af-legend{display:flex;gap:16px;align-items:center;margin-top:8px;font-size:11px;color:#547087}
+.cafm-af-legend i{display:inline-block;width:14px;height:3px;margin-right:5px;vertical-align:middle;border-radius:2px}
+.cafm-af-legend i.dashed{height:0;border-top:2px dashed;background:none!important}
+.cafm-af-unit{margin-left:auto;color:#8399ab}
+.cafm-stack-body{display:flex;gap:18px;align-items:flex-end;height:190px;padding-top:10px;margin-top:6px}
+.cafm-stack-col{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;height:100%;justify-content:flex-end}
+.cafm-stack-track{width:34px;height:150px;display:flex;flex-direction:column-reverse;border-radius:6px;overflow:hidden}
+.cafm-stack-seg{width:100%;transition:height .3s ease}
+.cafm-stack-col span{font-size:10px;color:#71869a}
+@media(max-width:900px){.cafm-kpi-grid,.cafm-kpi-grid-wide{grid-template-columns:repeat(2,minmax(0,1fr))}.cafm-chart-grid{grid-template-columns:1fr}}
+</style>
+
 <style>
-#cafm-app-view{max-width:1440px;margin:28px auto;padding:0 20px}.cafm-app-shell{display:grid;grid-template-columns:255px minmax(0,1fr);transition:grid-template-columns .2s ease;min-height:720px;overflow:visible;border:1px solid #d9e5ed;border-radius:20px;background:#f4f8fb;box-shadow:0 12px 35px rgba(20,58,87,.08)}.cafm-app-sidebar{position:sticky;top:0;display:flex;flex-direction:column;height:100vh;max-height:100vh;overflow-y:auto;padding:22px 14px;background:linear-gradient(165deg,#103e6a,#0b3156);color:#fff}.cafm-app-brand{display:flex;gap:10px;align-items:center;margin:0 7px 35px}.cafm-app-brand-mark{display:grid;place-items:center;width:35px;height:35px;border-radius:10px;background:#49aee2;font-size:19px;font-weight:800}.cafm-app-brand strong,.cafm-app-brand small{display:block}.cafm-app-brand strong{font-size:17px;letter-spacing:.8px}.cafm-app-brand small{color:#a9d5f0;font-size:8px;font-weight:800;letter-spacing:1.3px}.cafm-app-user{display:flex;gap:10px;align-items:center;margin:0 7px 25px;padding:11px;border-radius:12px;background:rgba(255,255,255,.08)}.cafm-app-user>span{display:grid;place-items:center;width:35px;height:35px;border-radius:50%;background:#40a4dc;font-size:12px;font-weight:800}.cafm-app-user small,.cafm-app-user strong{display:block}.cafm-app-user small{color:#a9d5f0;font-size:9px;font-weight:800;letter-spacing:.35px}.cafm-app-user strong{font-size:13px}.cafm-app-account-wrap{position:relative;margin:0 7px 25px}.cafm-app-account-button{width:100%;margin:0;border:0;color:#fff;text-align:left;cursor:pointer}.cafm-app-account-button>b{margin-left:auto;color:#b3d9ef;font-size:15px;font-weight:400}.cafm-app-account-menu{position:absolute;top:calc(100% + 7px);left:0;z-index:30;width:205px;padding:7px;border:1px solid rgba(181,217,239,.22);border-radius:12px;background:#173d5b;box-shadow:0 13px 28px rgba(0,0,0,.27)}.cafm-app-account-menu{opacity:1;transform:translateY(0);visibility:visible;pointer-events:auto;transition:opacity .16s ease,transform .16s ease,visibility .16s ease}.cafm-app-account-menu[hidden]{display:block;opacity:0;transform:translateY(-6px);visibility:hidden;pointer-events:none}.cafm-app-account-menu.is-opening{opacity:0;transform:translateY(-8px);visibility:visible;pointer-events:none}.cafm-app-account-menu button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:#eff8ff;text-align:left;font-size:13px}.cafm-app-account-menu button:hover{background:#245979}.cafm-app-account-menu button b{color:#9ccae5;font-weight:400}.cafm-app-account-menu hr{width:100%;margin:6px 0;border-top-color:rgba(181,217,239,.22)}.cafm-app-nav-group{margin:3px 0}.cafm-app-nav-group summary{display:flex;justify-content:space-between;align-items:center;padding:10px 11px;border-radius:9px;color:#eaf6ff;cursor:pointer;font-size:13px;font-weight:700;list-style:none}.cafm-app-nav-group summary::-webkit-details-marker{display:none}.cafm-app-nav-group summary:hover,.cafm-app-nav-group[open] summary{background:rgba(41,111,161,.45)}.cafm-app-nav-group summary b{color:#9bc9e7;font-size:15px;font-weight:400;transition:transform .18s ease}.cafm-app-nav-group[open] summary b{transform:rotate(180deg)}.cafm-app-nav-group-items{display:grid!important;gap:2px;max-height:0;overflow:hidden;opacity:0;padding:0 0 0 10px;transition:max-height .2s ease,opacity .15s ease,padding .2s ease}.cafm-app-nav-group[open] .cafm-app-nav-group-items{max-height:190px;opacity:1;padding:3px 0 4px 10px}.cafm-app-nav-group-items .cafm-app-nav-item{padding:8px 10px;color:#cfe9fa;font-size:12px}.cafm-app-sidebar-footer{margin:12px 7px 0;padding-top:12px;border-top:1px solid #37729c}.cafm-app-settings-link{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:#eaf6ff;text-align:left;font-size:12px;font-weight:700}.cafm-app-settings-link:hover{background:#1c6097}.cafm-app-settings-link b{color:#9bc9e7;font-weight:400}.cafm-app-nav-item .cafm-app-icon,.cafm-app-nav-group summary .cafm-app-icon{display:none;width:19px;height:19px;flex:0 0 19px}.cafm-app-collapse-icon{display:flex;width:19px;height:19px}.cafm-app-collapse-icon .cafm-app-icon{width:19px;height:19px}.cafm-app-collapse{display:flex;gap:8px;align-items:center;margin:auto 7px 0;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:#cfe9fa;text-align:left;font-size:12px;cursor:pointer}.cafm-app-collapse:hover{background:#1c6097;color:#fff}.cafm-app-shell.is-collapsed{grid-template-columns:78px minmax(0,1fr)}.cafm-app-shell.is-collapsed .cafm-app-sidebar{padding:22px 11px}.cafm-app-shell.is-collapsed .cafm-app-brand{justify-content:center;margin:0 0 28px}.cafm-app-shell.is-collapsed .cafm-app-brand>div,.cafm-app-shell.is-collapsed .cafm-app-user>div,.cafm-app-shell.is-collapsed .cafm-app-user>b,.cafm-app-shell.is-collapsed .cafm-app-nav-item>span,.cafm-app-shell.is-collapsed .cafm-app-nav-item>b,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary>span,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary>b,.cafm-app-shell.is-collapsed .cafm-app-workspace-link,.cafm-app-shell.is-collapsed .cafm-app-collapse span:not(.cafm-app-collapse-icon){display:none}.cafm-app-shell.is-collapsed .cafm-app-account-wrap{margin:0 0 18px}.cafm-app-shell.is-collapsed .cafm-app-user{justify-content:center;margin:0;padding:8px}.cafm-app-shell.is-collapsed .cafm-app-account-menu{top:0;left:56px}.cafm-app-shell.is-collapsed .cafm-app-nav-item,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary{justify-content:center;padding:11px}.cafm-app-shell.is-collapsed .cafm-app-nav-item .cafm-app-icon,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary .cafm-app-icon{display:block;color:#d8efff}.cafm-app-shell.is-collapsed .cafm-app-nav-group-items{display:none!important}.cafm-app-shell.is-collapsed .cafm-app-collapse{justify-content:center;margin:auto 0 0;padding:10px}.cafm-app-sidebar nav{display:grid;gap:4px}.cafm-app-nav-item{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 11px;border:0;border-radius:9px;background:transparent;color:#eaf6ff;text-align:left;font-size:13px}.cafm-app-nav-item:hover,.cafm-app-nav-item.active{background:#1c6097}.cafm-app-nav-item b{font-weight:400;color:#9bc9e7}.cafm-app-sidebar hr{width:calc(100% - 12px);margin:12px 6px;border:0;border-top:1px solid #37729c}.cafm-app-workspace-link{margin:22px 7px 0;padding:10px;border:1px solid #4b94bf;border-radius:9px;color:#fff;text-align:center;font-size:12px;font-weight:700}.cafm-app-workspace-link:hover{background:#fff;color:#134a78;text-decoration:none}.cafm-app-main{min-width:0;padding:34px;transition:padding .2s ease}.cafm-app-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:28px}.cafm-app-header p,.cafm-app-panel header p,.cafm-app-discover p{margin:0;color:#487391;font-size:10px;font-weight:800;letter-spacing:.8px}.cafm-app-header h1{margin:6px 0 5px;color:#173650;font-size:30px}.cafm-app-header span,.cafm-app-discover span{color:#657d91;font-size:14px}.cafm-app-refresh{display:inline-flex;gap:8px;align-items:center;min-height:46px;padding:11px 18px;border:1px solid #8eb9d7;border-radius:11px;background:#fff;color:#175d90;font-size:14px;font-weight:800;box-shadow:0 3px 8px rgba(20,88,137,.12);cursor:pointer}.cafm-app-refresh:hover{background:#eaf5fc;border-color:#397eae;box-shadow:0 5px 13px rgba(20,88,137,.2)}.cafm-app-refresh span{font-size:18px;line-height:1}.cafm-app-refresh em{font-style:normal}.cafm-app-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}.cafm-app-stat{min-height:88px;padding:12px 14px;border:1px solid #dce7ee;border-radius:14px;background:#fff;text-align:left;box-shadow:0 3px 8px rgba(20,58,87,.03)}.cafm-app-stat:hover{transform:translateY(-2px);box-shadow:0 9px 18px rgba(20,58,87,.09)}.cafm-app-stat small,.cafm-app-stat strong,.cafm-app-stat span{display:block}.cafm-app-stat small{color:#55748e;font-size:11px;font-weight:800;text-transform:uppercase}.cafm-app-stat strong{margin:6px 0 3px;color:#1e5f91;font-size:24px;line-height:1}.cafm-app-stat span{color:#71869a;font-size:11px}.cafm-app-stat.violet strong{color:#7955b6}.cafm-app-stat.red strong{color:#cf4545}.cafm-app-stat.amber strong{color:#bd7911}.cafm-app-panel{padding:22px;border:1px solid #dce7ee;border-radius:15px;background:#fff}.cafm-app-panel header{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:15px}.cafm-app-panel h2,.cafm-app-discover h2{margin:4px 0;color:#193a56;font-size:20px}.cafm-app-text-link{border:0;background:transparent;color:#1767a0;font-size:12px;font-weight:700}.cafm-app-work-list{display:grid}.cafm-app-work-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:14px 4px;border:0;border-top:1px solid #e6eef4;background:transparent;text-align:left}.cafm-app-work-row:first-child{border-top:0}.cafm-app-work-row:hover strong{color:#1767a0}.cafm-app-work-row strong,.cafm-app-work-row small{display:block}.cafm-app-work-row strong{overflow:hidden;color:#24455f;font-size:14px;text-overflow:ellipsis;white-space:nowrap}.cafm-app-work-row small{margin-top:4px;color:#71869a;font-size:11px}.cafm-app-work-row em{padding:5px 8px;border-radius:99px;background:#edf4f8;color:#40637d;font-size:10px;font-style:normal;font-weight:700}.cafm-app-work-row>b{color:#7190a6}.cafm-app-priority{padding:5px 8px;border-radius:99px;background:#e7f1fb;color:#22669a;font-size:10px;font-weight:800}.cafm-app-priority.high{background:#fff0df;color:#aa5e00}.cafm-app-priority.critical{background:#ffe5e5;color:#b82626}.cafm-app-priority.low{background:#e4f7ec;color:#247448}.cafm-app-empty{display:grid;gap:5px;padding:28px;text-align:center;color:#668095}.cafm-app-discover{display:flex;justify-content:space-between;gap:22px;align-items:center;margin-top:22px;padding:23px;border-radius:15px;background:linear-gradient(110deg,#e5f2fa,#f5faff)}.cafm-app-disabled{padding:9px 13px;border:0;border-radius:8px;background:#d4e4ef;color:#6c8498;font-weight:700}.cafm-app-loading,.cafm-app-error{padding:80px 20px;text-align:center;color:#547087}.cafm-app-error h2{color:#173650}.cafm-app-error a{color:#1767a0;font-weight:700}@media(max-width:820px){.cafm-app-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.cafm-app-sidebar{position:static;height:auto;max-height:none;overflow:visible}div#cafm-app-view{margin:12px auto;padding:0 10px}.cafm-app-shell{grid-template-columns:1fr}.cafm-app-sidebar{padding-bottom:18px}.cafm-app-sidebar nav{grid-template-columns:1fr 1fr}.cafm-app-workspace-link{margin-top:14px}.cafm-app-main{padding:22px 16px}.cafm-app-header h1{font-size:25px}.cafm-app-stats{grid-template-columns:1fr 1fr;gap:9px}.cafm-app-stat{min-height:115px;padding:13px}.cafm-app-stat strong{font-size:26px}.cafm-app-panel{padding:16px}.cafm-app-panel header{align-items:flex-start}.cafm-app-text-link{white-space:nowrap}.cafm-app-work-row{grid-template-columns:auto minmax(0,1fr) auto}.cafm-app-work-row>b{display:none}.cafm-app-work-row em{grid-column:2;justify-self:start}.cafm-app-discover{display:block}.cafm-app-disabled{margin-top:14px}.cafm-app-refresh em{display:none}.cafm-app-refresh{width:40px;justify-content:center;padding:10px}}
+#cafm-app-view{max-width:1440px;margin:28px auto;padding:0 20px}.cafm-app-shell{display:grid;grid-template-columns:255px minmax(0,1fr);transition:grid-template-columns .2s ease;min-height:720px;overflow:visible;border:1px solid #d9e5ed;border-radius:20px;background:#f4f8fb;box-shadow:0 12px 35px rgba(20,58,87,.08)}.cafm-app-sidebar{position:sticky;top:0;display:flex;flex-direction:column;height:100vh;max-height:100vh;overflow-y:auto;padding:22px 14px;background:linear-gradient(165deg,#103e6a,#0b3156);color:#fff}.cafm-app-brand{display:flex;gap:10px;align-items:center;margin:0 7px 35px}.cafm-app-brand-mark{display:grid;place-items:center;width:35px;height:35px;border-radius:10px;background:#49aee2;font-size:19px;font-weight:800}.cafm-app-brand strong,.cafm-app-brand small{display:block}.cafm-app-brand strong{font-size:17px;letter-spacing:.8px}.cafm-app-brand small{color:#a9d5f0;font-size:8px;font-weight:800;letter-spacing:1.3px}.cafm-app-user{display:flex;gap:10px;align-items:center;margin:0 7px 25px;padding:11px;border-radius:12px;background:rgba(255,255,255,.08)}.cafm-app-user>span{display:grid;place-items:center;width:35px;height:35px;border-radius:50%;background:#40a4dc;font-size:12px;font-weight:800}.cafm-app-user small,.cafm-app-user strong{display:block}.cafm-app-user small{color:#a9d5f0;font-size:9px;font-weight:800;letter-spacing:.35px}.cafm-app-user strong{font-size:13px}.cafm-app-account-wrap{position:relative;margin:0 7px 25px}.cafm-app-account-button{width:100%;margin:0;border:0;color:#fff;text-align:left;cursor:pointer}.cafm-app-account-button>b{margin-left:auto;color:#b3d9ef;font-size:15px;font-weight:400}.cafm-app-account-menu{position:absolute;top:calc(100% + 7px);left:0;z-index:30;width:205px;padding:7px;border:1px solid rgba(181,217,239,.22);border-radius:12px;background:#173d5b;box-shadow:0 13px 28px rgba(0,0,0,.27)}.cafm-app-account-menu{opacity:1;transform:translateY(0);visibility:visible;pointer-events:auto;transition:opacity .16s ease,transform .16s ease,visibility .16s ease}.cafm-app-account-menu[hidden]{display:block;opacity:0;transform:translateY(-6px);visibility:hidden;pointer-events:none}.cafm-app-account-menu.is-opening{opacity:0;transform:translateY(-8px);visibility:visible;pointer-events:none}.cafm-app-account-menu button{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:#eff8ff;text-align:left;font-size:13px}.cafm-app-account-menu button:hover{background:#245979}.cafm-app-account-menu button b{color:#9ccae5;font-weight:400}.cafm-app-account-menu hr{width:100%;margin:6px 0;border-top-color:rgba(181,217,239,.22)}.cafm-app-account-logout{color:#ffd0d3}.cafm-app-account-logout:hover{background:#5c2430}.cafm-app-nav-group{margin:3px 0}.cafm-app-nav-group summary{display:flex;justify-content:space-between;align-items:center;padding:10px 11px;border-radius:9px;color:#eaf6ff;cursor:pointer;font-size:13px;font-weight:700;list-style:none}.cafm-app-nav-group summary::-webkit-details-marker{display:none}.cafm-app-nav-group summary:hover,.cafm-app-nav-group[open] summary{background:rgba(41,111,161,.45)}.cafm-app-nav-group summary b{color:#9bc9e7;font-size:15px;font-weight:400;transition:transform .18s ease}.cafm-app-nav-group[open] summary b{transform:rotate(180deg)}.cafm-app-nav-group-items{display:grid!important;gap:2px;max-height:0;overflow:hidden;opacity:0;padding:0 0 0 10px;transition:max-height .2s ease,opacity .15s ease,padding .2s ease}.cafm-app-nav-group[open] .cafm-app-nav-group-items{max-height:190px;opacity:1;padding:3px 0 4px 10px}.cafm-app-nav-group-items .cafm-app-nav-item{padding:8px 10px;color:#cfe9fa;font-size:12px}.cafm-app-sidebar-footer{margin:12px 7px 0;padding-top:12px;border-top:1px solid #37729c}.cafm-app-settings-link{display:flex;justify-content:space-between;align-items:center;width:100%;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:#eaf6ff;text-align:left;font-size:12px;font-weight:700}.cafm-app-settings-link:hover{background:#1c6097}.cafm-app-settings-link b{color:#9bc9e7;font-weight:400}.cafm-app-nav-item .cafm-app-icon,.cafm-app-nav-group summary .cafm-app-icon{display:none;width:19px;height:19px;flex:0 0 19px}.cafm-app-collapse-icon{display:flex;width:19px;height:19px}.cafm-app-collapse-icon .cafm-app-icon{width:19px;height:19px}.cafm-app-collapse{display:flex;gap:8px;align-items:center;margin:auto 7px 0;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:#cfe9fa;text-align:left;font-size:12px;cursor:pointer}.cafm-app-collapse:hover{background:#1c6097;color:#fff}.cafm-app-shell.is-collapsed{grid-template-columns:78px minmax(0,1fr)}.cafm-app-shell.is-collapsed .cafm-app-sidebar{padding:22px 11px}.cafm-app-shell.is-collapsed .cafm-app-brand{justify-content:center;margin:0 0 28px}.cafm-app-shell.is-collapsed .cafm-app-brand>div,.cafm-app-shell.is-collapsed .cafm-app-user>div,.cafm-app-shell.is-collapsed .cafm-app-user>b,.cafm-app-shell.is-collapsed .cafm-app-nav-item>span,.cafm-app-shell.is-collapsed .cafm-app-nav-item>b,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary>span,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary>b,.cafm-app-shell.is-collapsed .cafm-app-workspace-link,.cafm-app-shell.is-collapsed .cafm-app-collapse span:not(.cafm-app-collapse-icon){display:none}.cafm-app-shell.is-collapsed .cafm-app-account-wrap{margin:0 0 18px}.cafm-app-shell.is-collapsed .cafm-app-user{justify-content:center;margin:0;padding:8px}.cafm-app-shell.is-collapsed .cafm-app-account-menu{top:0;left:56px}.cafm-app-shell.is-collapsed .cafm-app-nav-item,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary{justify-content:center;padding:11px}.cafm-app-shell.is-collapsed .cafm-app-nav-item .cafm-app-icon,.cafm-app-shell.is-collapsed .cafm-app-nav-group summary .cafm-app-icon{display:block;color:#d8efff}.cafm-app-shell.is-collapsed .cafm-app-nav-group-items{display:none!important}.cafm-app-shell.is-collapsed .cafm-app-collapse{justify-content:center;margin:auto 0 0;padding:10px}.cafm-app-sidebar nav{display:grid;gap:4px}.cafm-app-nav-item{display:flex;justify-content:space-between;align-items:center;width:100%;padding:10px 11px;border:0;border-radius:9px;background:transparent;color:#eaf6ff;text-align:left;font-size:13px}.cafm-app-nav-item:hover,.cafm-app-nav-item.active{background:#1c6097}.cafm-app-nav-item b{font-weight:400;color:#9bc9e7}.cafm-app-sidebar hr{width:calc(100% - 12px);margin:12px 6px;border:0;border-top:1px solid #37729c}.cafm-app-workspace-link{margin:22px 7px 0;padding:10px;border:1px solid #4b94bf;border-radius:9px;color:#fff;text-align:center;font-size:12px;font-weight:700}.cafm-app-workspace-link:hover{background:#fff;color:#134a78;text-decoration:none}.cafm-app-main{min-width:0;padding:34px;transition:padding .2s ease}.cafm-app-header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:28px}.cafm-app-header p,.cafm-app-panel header p,.cafm-app-discover p{margin:0;color:#487391;font-size:10px;font-weight:800;letter-spacing:.8px}.cafm-app-header h1{margin:6px 0 5px;color:#173650;font-size:30px}.cafm-app-header span,.cafm-app-discover span{color:#657d91;font-size:14px}.cafm-app-refresh{display:inline-flex;gap:8px;align-items:center;min-height:46px;padding:11px 18px;border:1px solid #8eb9d7;border-radius:11px;background:#fff;color:#175d90;font-size:14px;font-weight:800;box-shadow:0 3px 8px rgba(20,88,137,.12);cursor:pointer}.cafm-app-refresh:hover{background:#eaf5fc;border-color:#397eae;box-shadow:0 5px 13px rgba(20,88,137,.2)}.cafm-app-refresh span{font-size:18px;line-height:1}.cafm-app-refresh em{font-style:normal}.cafm-app-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:20px}.cafm-app-stat{min-height:88px;padding:12px 14px;border:1px solid #dce7ee;border-radius:14px;background:#fff;text-align:left;box-shadow:0 3px 8px rgba(20,58,87,.03)}.cafm-app-stat:hover{transform:translateY(-2px);box-shadow:0 9px 18px rgba(20,58,87,.09)}.cafm-app-stat small,.cafm-app-stat strong,.cafm-app-stat span{display:block}.cafm-app-stat small{color:#55748e;font-size:11px;font-weight:800;text-transform:uppercase}.cafm-app-stat strong{margin:6px 0 3px;color:#1e5f91;font-size:24px;line-height:1}.cafm-app-stat span{color:#71869a;font-size:11px}.cafm-app-stat.violet strong{color:#7955b6}.cafm-app-stat.red strong{color:#cf4545}.cafm-app-stat.amber strong{color:#bd7911}.cafm-app-panel{padding:22px;border:1px solid #dce7ee;border-radius:15px;background:#fff}.cafm-app-panel header{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:15px}.cafm-app-panel h2,.cafm-app-discover h2{margin:4px 0;color:#193a56;font-size:20px}.cafm-app-text-link{border:0;background:transparent;color:#1767a0;font-size:12px;font-weight:700}.cafm-app-work-list{display:grid}.cafm-app-work-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:14px;align-items:center;padding:14px 4px;border:0;border-top:1px solid #e6eef4;background:transparent;text-align:left}.cafm-app-work-row:first-child{border-top:0}.cafm-app-work-row:hover strong{color:#1767a0}.cafm-app-work-row strong,.cafm-app-work-row small{display:block}.cafm-app-work-row strong{overflow:hidden;color:#24455f;font-size:14px;text-overflow:ellipsis;white-space:nowrap}.cafm-app-work-row small{margin-top:4px;color:#71869a;font-size:11px}.cafm-app-work-row em{padding:5px 8px;border-radius:99px;background:#edf4f8;color:#40637d;font-size:10px;font-style:normal;font-weight:700}.cafm-app-work-row>b{color:#7190a6}.cafm-app-priority{padding:5px 8px;border-radius:99px;background:#e7f1fb;color:#22669a;font-size:10px;font-weight:800}.cafm-app-priority.high{background:#fff0df;color:#aa5e00}.cafm-app-priority.critical{background:#ffe5e5;color:#b82626}.cafm-app-priority.low{background:#e4f7ec;color:#247448}.cafm-app-empty{display:grid;gap:5px;padding:28px;text-align:center;color:#668095}.cafm-app-discover{display:flex;justify-content:space-between;gap:22px;align-items:center;margin-top:22px;padding:23px;border-radius:15px;background:linear-gradient(110deg,#e5f2fa,#f5faff)}.cafm-app-disabled{padding:9px 13px;border:0;border-radius:8px;background:#d4e4ef;color:#6c8498;font-weight:700}.cafm-app-loading,.cafm-app-error{padding:80px 20px;text-align:center;color:#547087}.cafm-app-error h2{color:#173650}.cafm-app-error a{color:#1767a0;font-weight:700}@media(max-width:820px){.cafm-app-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.cafm-app-sidebar{position:static;height:auto;max-height:none;overflow:visible}div#cafm-app-view{margin:12px auto;padding:0 10px}.cafm-app-shell{grid-template-columns:1fr}.cafm-app-sidebar{padding-bottom:18px}.cafm-app-sidebar nav{grid-template-columns:1fr 1fr}.cafm-app-workspace-link{margin-top:14px}.cafm-app-main{padding:22px 16px}.cafm-app-header h1{font-size:25px}.cafm-app-stats{grid-template-columns:1fr 1fr;gap:9px}.cafm-app-stat{min-height:115px;padding:13px}.cafm-app-stat strong{font-size:26px}.cafm-app-panel{padding:16px}.cafm-app-panel header{align-items:flex-start}.cafm-app-text-link{white-space:nowrap}.cafm-app-work-row{grid-template-columns:auto minmax(0,1fr) auto}.cafm-app-work-row>b{display:none}.cafm-app-work-row em{grid-column:2;justify-self:start}.cafm-app-discover{display:block}.cafm-app-disabled{margin-top:14px}.cafm-app-refresh em{display:none}.cafm-app-refresh{width:40px;justify-content:center;padding:10px}}
 
 /* Full-screen CAFM app shell: this page intentionally does not use website chrome. */
 body:has(#page-cafm) { margin:0!important; padding:0!important; background:#f4f8fb; overflow-x:hidden; }
@@ -182,5 +820,187 @@ body:has(#page-cafm) .page-content-wrapper > main { margin:0; padding:0; max-wid
 body:has(#page-cafm) #cafm-app-view { width:100%; max-width:none; min-height:100vh; margin:0; padding:0; }
 body:has(#page-cafm) .cafm-app-shell { min-height:100vh; border:0; border-radius:0; box-shadow:none; }
 
+</style>
+<style>
+.cafm-app-main.cafm-app-main-analytics {
+  padding: 0;
+  overflow: hidden;
+}
+.cafm-dashboard-embed {
+  position: relative;
+  min-height: 100vh;
+  background: #f4f8fb;
+}
+.cafm-dashboard-embed-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  color: #547187;
+  font-weight: 700;
+  background: #f4f8fb;
+}
+.cafm-dashboard-embed iframe {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  border: 0;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .22s ease, transform .22s ease;
+}
+.cafm-dashboard-embed iframe.is-ready {
+  opacity: 1;
+  transform: translateY(0);
+}
+</style>
+
+<style>
+.cafm-request-view-menu .cafm-view-options {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  left: auto;
+  z-index: 30;
+  display: grid;
+  box-sizing: border-box;
+  min-width: 122px;
+  padding: 7px;
+  border: 1px solid #c5ddeb;
+  border-radius: 11px;
+  background: #f8fbfe;
+  box-shadow: 0 12px 25px rgba(31,82,116,.18);
+}
+.cafm-request-view-menu .cafm-view-options[hidden] {
+  display: none;
+}
+.cafm-request-view-menu .cafm-view-options button {
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #214d6d;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cafm-request-view-menu .cafm-view-options button:hover,
+.cafm-request-view-menu .cafm-view-options button.is-active {
+  background: #dceef9;
+  color: #145c91;
+}
+</style>
+<style>
+.cafm-subtle-badge { display:inline-flex; align-items:center; gap:5px; max-width:100%; min-height:24px; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; line-height:1.2; white-space:nowrap; }
+.cafm-subtle-badge-icon { font-size:11px; font-weight:900; }
+.cafm-subtle-badge.red { background:#fee2e2; color:#b91c1c; }
+.cafm-subtle-badge.amber { background:#fef3c7; color:#a16207; }
+.cafm-subtle-badge.blue { background:#dbeafe; color:#1d4ed8; }
+.cafm-subtle-badge.green { background:#dcfce7; color:#15803d; }
+.cafm-subtle-badge.teal { background:#ccfbf1; color:#0f766e; }
+.cafm-subtle-badge.violet { background:#ede9fe; color:#6d28d9; }
+.cafm-subtle-badge.gray { background:#f1f5f9; color:#475569; }
+.cafm-request-card-badges { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.cafm-request-card .cafm-subtle-badge,
+.cafm-request-card .cafm-subtle-badge span,
+.cafm-request-lane .cafm-subtle-badge,
+.cafm-request-lane .cafm-subtle-badge span { color:inherit; }
+.cafm-request-lane .cafm-subtle-badge { font-size:10px; }
+</style>
+<style>
+.cafm-app-stats { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.cafm-home-actions { display:flex; justify-content:space-between; align-items:center; gap:18px; margin-bottom:20px; padding:18px 20px; border:1px solid #cfe0eb; border-radius:15px; background:linear-gradient(110deg,#e5f2fa,#f8fbfd); }
+.cafm-home-actions p { margin:0; color:#487391; font-size:10px; font-weight:800; letter-spacing:.8px; }
+.cafm-home-actions h2 { margin:4px 0 0; color:#193a56; font-size:19px; }
+.cafm-home-actions>div:last-child { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.cafm-home-actions button { padding:9px 12px; border:1px solid #86b7d5; border-radius:9px; background:#fff; color:#145c91; font-size:11px; font-weight:800; box-shadow:0 2px 5px rgba(20,88,137,.08); cursor:pointer; }
+.cafm-home-actions button:hover { transform:translateY(-1px); border-color:#397eae; background:#edf7fd; }
+.cafm-home-actions span { color:#71869a; font-size:12px; }
+.cafm-home-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin-bottom:16px; }
+.cafm-home-grid>.cafm-app-panel { min-width:0; overflow:hidden; }
+.cafm-home-list { min-width:0; max-width:100%; overflow:hidden; }
+.cafm-home-list { display:grid; }
+.cafm-home-row { box-sizing:border-box; display:flex; min-width:0; max-width:100%; overflow:hidden; justify-content:space-between; align-items:center; gap:14px; width:100%; padding:12px 3px; border:0; border-top:1px solid #e6eef4; background:transparent; text-align:left; cursor:pointer; }
+.cafm-home-row:first-child { border-top:0; }
+.cafm-home-row:hover strong { color:#1767a0; }
+.cafm-home-row>div:first-child { flex:1 1 auto; min-width:0; overflow:hidden; }
+.cafm-home-row small,.cafm-home-row strong,.cafm-home-row span { display:block; }
+.cafm-home-row small { color:#54809d; font-size:9px; font-weight:800; text-transform:uppercase; }
+.cafm-home-row strong { overflow:hidden; margin:3px 0; color:#24455f; font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
+.cafm-home-row span { max-width:100%; color:#71869a; font-size:10px; overflow-wrap:anywhere; }
+.cafm-home-row-meta { display:grid; justify-items:end; flex:0 1 auto; min-width:0; max-width:42%; gap:5px; }
+.cafm-home-row-meta em { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:4px 7px; border-radius:99px; background:#edf4f8; color:#40637d; font-size:9px; font-style:normal; font-weight:700; }
+.cafm-home-active { margin-bottom:20px; }
+@media(max-width:980px){.cafm-app-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.cafm-home-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.cafm-home-actions{align-items:flex-start;flex-direction:column}.cafm-home-actions>div:last-child{justify-content:flex-start}.cafm-home-grid{grid-template-columns:1fr}}
+</style>
+<style>
+.cafm-record-link { padding:0; border:0; background:transparent; color:#1b6397; text-align:left; font:inherit; font-weight:700; cursor:pointer; }
+.cafm-record-link:hover { color:#104f7c; text-decoration:underline; }
+.cafm-request-card { width:100%; background:#fff; text-align:left; cursor:pointer; }
+.cafm-request-lane button[data-request-id] { display:grid; gap:4px; width:100%; margin:8px 0; padding:10px; border:1px solid #dbe7ef; border-radius:9px; background:#fff; color:#34546b; text-align:left; cursor:pointer; }
+.cafm-request-lane button[data-request-id]:hover { border-color:#7db4d8; }
+.cafm-record-preview { position:fixed; inset:0; z-index:1000; display:flex; justify-content:flex-end; }
+.cafm-record-preview-backdrop { position:absolute; inset:0; border:0; background:rgba(12,35,52,.38); backdrop-filter:blur(2px); cursor:default; animation:cafmPreviewFade .18s ease both; }
+.cafm-record-preview-panel { position:relative; z-index:1; width:min(560px,94vw); height:100%; overflow-y:auto; padding:26px; background:#f5f9fc; box-shadow:-18px 0 45px rgba(13,49,76,.2); animation:cafmPreviewSlide .22s ease both; }
+.cafm-record-preview-panel>header { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; padding-bottom:18px; border-bottom:1px solid #d7e5ee; }
+.cafm-record-preview-panel>header p { margin:0; color:#397594; font-size:10px; font-weight:800; letter-spacing:.8px; }
+.cafm-record-preview-panel>header h2 { margin:6px 0; color:#173650; font-size:23px; line-height:1.25; }
+.cafm-record-preview-panel>header span { color:#668095; font-size:12px; }
+.cafm-record-preview-panel>header button { display:grid; place-items:center; flex:0 0 36px; width:36px; height:36px; border:1px solid #cbdde8; border-radius:10px; background:#fff; color:#315b76; font-size:23px; cursor:pointer; }
+.cafm-record-preview-badges { display:flex; flex-wrap:wrap; gap:7px; margin:18px 0; }
+.cafm-record-preview-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.cafm-record-preview-field { min-width:0; padding:13px; border:1px solid #dbe7ef; border-radius:11px; background:#fff; }
+.cafm-record-preview-field small,.cafm-record-preview-description>small { display:block; margin-bottom:5px; color:#66839a; font-size:9px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; }
+.cafm-record-preview-field strong { display:block; overflow:hidden; color:#294b64; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+.cafm-record-preview-description { margin-top:12px; padding:16px; border:1px solid #dbe7ef; border-radius:11px; background:#fff; }
+.cafm-record-preview-description p { margin:0; color:#49647a; font-size:13px; line-height:1.6; white-space:pre-wrap; }
+.cafm-record-preview-related { display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center; width:100%; margin-top:12px; padding:14px; border:1px solid #b9d5e5; border-radius:11px; background:#e9f5fb; color:#225d83; text-align:left; cursor:pointer; }
+.cafm-record-preview-related span { font-size:11px; }.cafm-record-preview-related strong { font-size:12px; }.cafm-record-preview-related b { font-size:16px; }
+.cafm-record-preview-panel>footer { display:flex; justify-content:flex-end; gap:9px; margin-top:20px; padding-top:18px; border-top:1px solid #d7e5ee; }
+.cafm-record-preview-panel>footer button,.cafm-record-preview-error button { padding:10px 14px; border-radius:9px; font-size:12px; font-weight:800; cursor:pointer; }
+.cafm-record-preview-secondary { border:1px solid #bcd2df; background:#fff; color:#365f79; }
+.cafm-record-preview-primary { border:1px solid #14639d; background:#14639d; color:#fff; }
+.cafm-record-preview-loading,.cafm-record-preview-error { display:grid; place-items:center; min-height:60vh; color:#55748e; text-align:center; }
+.cafm-record-preview.is-closing .cafm-record-preview-backdrop { animation:cafmPreviewFadeOut .18s ease both; pointer-events:none; }\n.cafm-record-preview.is-closing .cafm-record-preview-panel { animation:cafmPreviewSlideOut .18s ease both; pointer-events:none; }\n@keyframes cafmPreviewFadeOut { from{opacity:1} to{opacity:0} }\n@keyframes cafmPreviewSlideOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(24px)} }\n@keyframes cafmPreviewFade { from{opacity:0} to{opacity:1} }
+@keyframes cafmPreviewSlide { from{opacity:0;transform:translateX(24px)} to{opacity:1;transform:translateX(0)} }
+@media(max-width:600px){.cafm-record-preview-panel{padding:19px}.cafm-record-preview-grid{grid-template-columns:1fr}}
+</style>
+<style>
+.cafm-generic-preview-grid { margin-top:18px; }
+.cafm-request-lane button[data-generic-preview-name] { display:grid; gap:4px; width:100%; margin:8px 0; padding:10px; border:1px solid #dbe7ef; border-radius:9px; background:#fff; color:#34546b; text-align:left; cursor:pointer; }
+.cafm-request-lane button[data-generic-preview-name]:hover { border-color:#7db4d8; }
+</style>
+<style>
+.cafm-create-form { margin-top:18px; }
+.cafm-create-drawer .cafm-record-preview-panel,.cafm-create-form,.cafm-create-grid,.cafm-create-field,.cafm-create-field * { box-sizing:border-box; }
+.cafm-create-drawer .cafm-record-preview-panel { overflow-x:hidden; }
+.cafm-create-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 14px; width:100%; }
+.cafm-create-field { display:grid; align-content:start; gap:7px; min-width:0; max-width:100%; overflow:visible; }
+.cafm-create-field-wide { grid-column:1/-1; }
+.cafm-create-field>label,.cafm-create-check label { color:#3d6078; font-size:11px; font-weight:800; }
+.cafm-create-field>label b { margin-left:3px; color:#c63f3f; }
+.cafm-create-field input:not([type="checkbox"]),.cafm-create-field select,.cafm-create-field textarea { width:100%; min-height:41px; padding:9px 11px; border:1px solid #c9dce7; border-radius:9px; outline:none; background:#fff; color:#294b64; font-size:12px; transition:border-color .15s ease,box-shadow .15s ease; }
+.cafm-create-field textarea { resize:vertical; }
+.cafm-create-field input:focus,.cafm-create-field select:focus,.cafm-create-field textarea:focus { border-color:#4d96c3; box-shadow:0 0 0 3px rgba(55,135,187,.12); }
+.cafm-create-field>small { color:#7a91a2; font-size:9px; }
+.cafm-create-check { grid-column:1/-1; padding:11px; border:1px solid #d8e5ed; border-radius:9px; background:#fff; }
+.cafm-create-check label { display:flex; align-items:center; gap:8px; cursor:pointer; }
+.cafm-create-check input { width:16px; height:16px; }
+.cafm-create-form>footer { display:flex; justify-content:flex-end; gap:9px; margin-top:20px; padding-top:18px; border-top:1px solid #d7e5ee; }
+.cafm-create-form>footer button { padding:10px 14px; border-radius:9px; font-size:12px; font-weight:800; cursor:pointer; }
+.cafm-create-form>footer button:disabled { opacity:.65; cursor:wait; }
+.cafm-create-error { margin-top:14px; padding:11px 13px; border:1px solid #efb9b9; border-radius:9px; background:#fff0f0; color:#a42e2e; font-size:11px; }
+.cafm-create-success { display:grid; place-items:center; min-height:70vh; text-align:center; }
+.cafm-create-success>span { display:grid; place-items:center; width:58px; height:58px; border-radius:50%; background:#dcfce7; color:#15803d; font-size:28px; font-weight:900; }
+.cafm-create-success p { margin:18px 0 4px; color:#438066; font-size:10px; font-weight:800; letter-spacing:.8px; }
+.cafm-create-success h2 { margin:0 0 5px; color:#173650; font-size:23px; }
+.cafm-create-success small { color:#71869a; }
+.cafm-create-success>div { display:flex; gap:9px; margin-top:24px; }
+.cafm-create-success button { padding:10px 14px; border-radius:9px; font-size:12px; font-weight:800; cursor:pointer; }
+@media(max-width:600px){.cafm-create-grid{grid-template-columns:1fr}.cafm-create-field-wide,.cafm-create-check{grid-column:auto}}
 </style>
 {% endblock %}

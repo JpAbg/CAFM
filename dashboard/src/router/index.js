@@ -1,19 +1,4 @@
-import { createRouter, createWebHistory } from "vue-router";
-import Home from "../views/Home.vue";
-import authRoutes from './auth';
-
-const routes = [
-  {
-	path: "/",
-	name: "Home",
-	component: Home,
-  },
-  ...authRoutes,
-];
-
-const router = createRouter({
-  history: createWebHistory("/dashboard"),
-  routes,
-});
-
-export default router;
+import { createRouter, createWebHistory } from 'vue-router'
+import Home from '../views/Home.vue'
+const router=createRouter({history:createWebHistory('/dashboard'),routes:[{path:'/',name:'Home',component:Home}]})
+export default router
