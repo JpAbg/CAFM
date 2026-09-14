@@ -5,7 +5,7 @@ import os
 import frappe
 from frappe import _
 from frappe.model.workflow import apply_workflow
-from frappe.utils import cint, getdate, now_datetime
+from frappe.utils import add_days, cint, getdate, now_datetime, strip_html_tags
 from frappe.utils.file_manager import save_file
 
 from cafm.permissions import PRIVILEGED_ROLES, get_employee_for_user
@@ -520,6 +520,24 @@ def upload_work_order_attachment(
 CAFM_APP_VIEW_ROLES = ("Facility Manager", "Facility Coordinator", "System Manager")
 
 
+CAFM_EMBEDDED_DOCTYPES = {
+    "Facility Work Order": "work_order_status",
+    "Preventive Maintenance Plan": "frequency",
+    "Facility Inspection": "inspection_status",
+    "Asset": "status",
+    "Facility Location": "location_type",
+    "Asset Category": None,
+    "Facility Service Provider": "provider_status",
+    "Facility Service Contract": "contract_status",
+    "Facility Vendor Quotation": "quotation_status",
+    "Facility SLA Policy": "is_active",
+    "Utility Meter": "utility_type",
+    "Utility Reading": "utility_type",
+    "Utility Bill": "match_status",
+    "Utility Budget": "budget_status",
+}
+
+
 def _require_cafm_app_view_access():
     _require_authenticated()
     if not set(CAFM_APP_VIEW_ROLES).intersection(frappe.get_roles()):
@@ -527,6 +545,248 @@ def _require_cafm_app_view_access():
             _("The CAFM Operations view is available to Facility Managers and Coordinators."),
             frappe.PermissionError,
         )
+
+
+def _require_cafm_creatable_doctype(doctype):
+    _require_cafm_app_view_access()
+    if doctype != "Issue" and doctype not in CAFM_EMBEDDED_DOCTYPES:
+        frappe.throw(_("This record type is not available in the CAFM view."), frappe.PermissionError)
+    if not frappe.has_permission(doctype, "create"):
+        frappe.throw(_("You do not have permission to create {0}.").format(doctype), frappe.PermissionError)
+
+
+@frappe.whitelist()
+def get_cafm_create_schema(doctype):
+    """Return safe editable fields for the reusable /cafm creation drawer."""
+    _require_cafm_creatable_doctype(doctype)
+    meta = frappe.get_meta(doctype)
+    supported = {
+        "Data", "Small Text", "Text", "Long Text", "Text Editor", "Select", "Link",
+        "Date", "Datetime", "Time", "Check", "Int", "Float", "Currency", "Percent",
+    }
+    preferred = {
+        "subject", "plan_name", "location_name", "provider_name", "meter_name",
+        "company", "facility_location", "asset", "category", "issue_type", "priority",
+        "work_order_type", "frequency", "status", "description", "planned_start",
+        "planned_end", "planned_date", "next_due_date", "reading_date",
+    }
+    fields = []
+    for field in meta.fields:
+        if (
+            not field.fieldname
+            or field.fieldtype not in supported
+            or field.hidden
+            or field.read_only
+            or field.permlevel
+            or field.fieldname in ("naming_series", "name")
+        ):
+            continue
+        if not field.reqd and not field.in_list_view and field.fieldname not in preferred:
+            continue
+        item = {
+            "fieldname": field.fieldname,
+            "label": field.label or field.fieldname,
+            "fieldtype": field.fieldtype,
+            "required": bool(field.reqd),
+            "options": [],
+            "default": None,
+        }
+        if field.fieldtype == "Select":
+            item["options"] = [value for value in (field.options or "").splitlines() if value]
+        elif field.fieldtype == "Link" and field.options and frappe.has_permission(field.options, "read"):
+            item["link_doctype"] = field.options
+            item["options"] = frappe.get_list(
+                field.options,
+                pluck="name",
+                order_by="modified desc",
+                limit_page_length=100,
+            )
+        default = field.default
+        if default not in (None, "") and not str(default).startswith(("eval:", "user:", "Today")):
+            item["default"] = default
+        fields.append(item)
+
+    fields.sort(key=lambda field: (
+        not field["required"],
+        field["fieldname"] not in preferred,
+        next((index for index, meta_field in enumerate(meta.fields) if meta_field.fieldname == field["fieldname"]), 999),
+    ))
+    return {
+        "doctype": doctype,
+        "label": doctype,
+        "fields": fields[:24],
+    }
+
+
+@frappe.whitelist(methods=["POST"])
+def create_cafm_record(doctype, values):
+    """Create a CAFM record from the reusable drawer using normal DocType validation."""
+    _require_cafm_creatable_doctype(doctype)
+    values = _parse_json(values, {})
+    if not isinstance(values, dict):
+        frappe.throw(_("Values must be a JSON object."))
+
+    schema = get_cafm_create_schema(doctype)
+    allowed = {field["fieldname"]: field for field in schema["fields"]}
+    clean = {}
+    for fieldname, value in values.items():
+        if fieldname not in allowed:
+            continue
+        field = allowed[fieldname]
+        if field["fieldtype"] == "Check":
+            clean[fieldname] = cint(value)
+        elif value not in (None, ""):
+            clean[fieldname] = value
+
+    document = frappe.get_doc({"doctype": doctype, **clean})
+    document.insert()
+    meta = frappe.get_meta(doctype)
+    return {
+        "doctype": doctype,
+        "name": document.name,
+        "title": document.get(meta.title_field) if meta.title_field else document.name,
+        "route": f"/app/{frappe.scrub(doctype).replace('_', '-')}/{document.name}",
+    }
+
+
+@frappe.whitelist()
+def get_cafm_doctype_detail(doctype, name):
+    """Return a permission-checked, useful field summary for an embedded record."""
+    _require_cafm_app_view_access()
+    if doctype != "Issue" and doctype not in CAFM_EMBEDDED_DOCTYPES:
+        frappe.throw(_("This record type is not available in the CAFM view."), frappe.PermissionError)
+    document = frappe.get_doc(doctype, name)
+    document.check_permission("read")
+    meta = frappe.get_meta(doctype)
+    excluded_types = {
+        "Section Break", "Column Break", "Tab Break", "Table", "Table MultiSelect",
+        "HTML", "Button", "Fold", "Heading", "Attach", "Attach Image",
+    }
+    preferred = (
+        meta.title_field, CAFM_EMBEDDED_DOCTYPES.get(doctype), "priority", "custom_issue_status", "status",
+        "work_order_status", "facility_location", "asset", "company", "category",
+        "type", "frequency", "planned_start", "planned_end", "next_due_date",
+        "modified",
+    )
+    selected = []
+    for fieldname in preferred:
+        if fieldname and fieldname not in selected and meta.has_field(fieldname):
+            selected.append(fieldname)
+    for field in meta.fields:
+        if (
+            len(selected) >= 12
+            or not field.fieldname
+            or field.fieldname in selected
+            or field.fieldtype in excluded_types
+            or field.hidden
+        ):
+            continue
+        value = document.get(field.fieldname)
+        if value not in (None, "") and (field.in_list_view or field.in_standard_filter):
+            selected.append(field.fieldname)
+
+    fields = []
+    description = ""
+    for fieldname in selected:
+        field = meta.get_field(fieldname)
+        value = document.get(fieldname)
+        if value in (None, ""):
+            continue
+        if field.fieldtype in ("Text", "Small Text", "Long Text", "Text Editor"):
+            if not description:
+                description = strip_html_tags(str(value))
+            continue
+        fields.append({
+            "fieldname": fieldname,
+            "label": field.label or fieldname,
+            "fieldtype": field.fieldtype,
+            "value": value,
+        })
+    if not description:
+        for field in meta.fields:
+            if field.fieldtype in ("Text", "Small Text", "Long Text", "Text Editor"):
+                value = document.get(field.fieldname)
+                if value:
+                    description = strip_html_tags(str(value))
+                    break
+
+    return {
+        "doctype": doctype,
+        "name": document.name,
+        "title": document.get(meta.title_field) if meta.title_field else document.name,
+        "fields": fields,
+        "description": description,
+        "route": f"/app/{frappe.scrub(doctype).replace('_', '-')}/{document.name}",
+    }
+
+
+@frappe.whitelist()
+def get_cafm_doctype_view(doctype):
+    """Return permission-filtered list metadata and rows for an embedded CAFM view."""
+    _require_cafm_app_view_access()
+    if doctype not in CAFM_EMBEDDED_DOCTYPES:
+        frappe.throw(_("This record type is not available in the CAFM view."), frappe.PermissionError)
+    if not frappe.has_permission(doctype, "read"):
+        frappe.throw(_("You do not have permission to view {0}.").format(doctype), frappe.PermissionError)
+
+    meta = frappe.get_meta(doctype)
+    excluded_types = {
+        "Section Break",
+        "Column Break",
+        "Tab Break",
+        "Table",
+        "Table MultiSelect",
+        "HTML",
+        "Button",
+        "Fold",
+        "Heading",
+    }
+    list_fields = [
+        field
+        for field in meta.fields
+        if field.in_list_view
+        and field.fieldname
+        and field.fieldtype not in excluded_types
+    ]
+
+    title_field = meta.title_field
+    group_field = CAFM_EMBEDDED_DOCTYPES[doctype]
+    selected_names = ["name"]
+    for fieldname in (title_field, group_field):
+        if fieldname and fieldname not in selected_names and meta.has_field(fieldname):
+            selected_names.append(fieldname)
+    for field in list_fields:
+        if field.fieldname not in selected_names:
+            selected_names.append(field.fieldname)
+        if len(selected_names) >= 8:
+            break
+
+    rows = frappe.get_list(
+        doctype,
+        fields=selected_names,
+        order_by=f"{meta.sort_field or 'modified'} {meta.sort_order or 'desc'}",
+        limit_page_length=500,
+    )
+    field_map = {field.fieldname: field for field in meta.fields}
+    columns = []
+    for fieldname in selected_names:
+        field = field_map.get(fieldname)
+        columns.append(
+            {
+                "fieldname": fieldname,
+                "label": _("ID") if fieldname == "name" else (field.label or fieldname),
+                "fieldtype": "Data" if fieldname == "name" else field.fieldtype,
+            }
+        )
+
+    return {
+        "doctype": doctype,
+        "title_field": title_field or "name",
+        "group_field": group_field if group_field in selected_names else None,
+        "columns": columns,
+        "rows": rows,
+        "can_create": frappe.has_permission(doctype, "create"),
+    }
 
 
 @frappe.whitelist()
@@ -560,6 +820,31 @@ def get_cafm_operations_dashboard():
         },
     )
 
+    upcoming_preventive = (
+        len(
+            frappe.get_list(
+                "Preventive Maintenance Plan",
+                filters={"is_active": 1, "next_due_date": ["between", [today, add_days(today, 7)]]},
+                fields=["name"],
+                limit_page_length=10000,
+            )
+        )
+        if frappe.has_permission("Preventive Maintenance Plan", "read")
+        else 0
+    )
+    unresolved_inspections = (
+        len(
+            frappe.get_list(
+                "Facility Inspection",
+                filters={"status": ["not in", ("Completed", "Approved", "Rejected", "Cancelled")]},
+                fields=["name"],
+                limit_page_length=10000,
+            )
+        )
+        if frappe.has_permission("Facility Inspection", "read")
+        else 0
+    )
+
     work_orders = frappe.get_all(
         "Facility Work Order",
         filters={"work_order_status": ["in", active_statuses]},
@@ -576,6 +861,113 @@ def get_cafm_operations_dashboard():
     )
 
     user_roles = set(frappe.get_roles(frappe.session.user))
+
+    attention = []
+    if frappe.has_permission("Issue", "read"):
+        for row in frappe.get_list(
+            "Issue",
+            filters={
+                "priority": ["in", ("Critical", "High")],
+                "custom_issue_status": ["not in", open_request_statuses],
+            },
+            fields=["name", "subject", "priority", "custom_issue_status"],
+            order_by="modified desc",
+            limit_page_length=5,
+        ):
+            attention.append({
+                "title": row.subject or row.name,
+                "kind": _("Request"),
+                "status": row.custom_issue_status or _("New"),
+                "priority": row.priority or _("Not set"),
+                "detail": _("High-priority maintenance request"),
+                "route": f"/app/issue/{row.name}",
+                "doctype": "Issue",
+                "name": row.name,
+            })
+    if frappe.has_permission("Facility Work Order", "read"):
+        for row in frappe.get_list(
+            "Facility Work Order",
+            filters=[
+                ["work_order_status", "not in", closed_statuses],
+                ["planned_end", "is", "set"],
+                ["planned_end", "<", today],
+            ],
+            fields=["name", "subject", "priority", "work_order_status", "planned_end"],
+            order_by="planned_end asc",
+            limit_page_length=5,
+        ):
+            attention.append({
+                "title": row.subject or row.name,
+                "kind": _("Overdue work order"),
+                "status": row.work_order_status,
+                "priority": row.priority or _("Not set"),
+                "detail": _("Due {0}").format(row.planned_end),
+                "route": f"/app/facility-work-order/{row.name}",
+                "doctype": "Facility Work Order",
+                "name": row.name,
+            })
+
+    today_items = []
+    if frappe.has_permission("Facility Work Order", "read"):
+        for row in frappe.get_list(
+            "Facility Work Order",
+            filters={"planned_start": ["between", [today, add_days(today, 1)]]},
+            fields=["name", "subject", "work_order_status", "planned_start"],
+            order_by="planned_start asc",
+            limit_page_length=6,
+        ):
+            today_items.append({
+                "title": row.subject or row.name,
+                "kind": _("Work order"),
+                "status": row.work_order_status,
+                "detail": str(row.planned_start or ""),
+                "route": f"/app/facility-work-order/{row.name}",
+                "doctype": "Facility Work Order",
+                "name": row.name,
+            })
+    if frappe.has_permission("Facility Inspection", "read"):
+        for row in frappe.get_list(
+            "Facility Inspection",
+            filters={"planned_date": today},
+            fields=["name", "inspection_template", "status", "planned_date"],
+            limit_page_length=6,
+        ):
+            today_items.append({
+                "title": row.inspection_template or row.name,
+                "kind": _("Inspection"),
+                "status": row.status,
+                "detail": str(row.planned_date or ""),
+                "route": f"/app/facility-inspection/{row.name}",
+                "doctype": "Facility Inspection",
+                "name": row.name,
+            })
+    if frappe.has_permission("Preventive Maintenance Plan", "read"):
+        for row in frappe.get_list(
+            "Preventive Maintenance Plan",
+            filters={"is_active": 1, "next_due_date": today},
+            fields=["name", "plan_name", "next_due_date"],
+            limit_page_length=6,
+        ):
+            today_items.append({
+                "title": row.plan_name or row.name,
+                "kind": _("Preventive maintenance"),
+                "status": _("Due today"),
+                "detail": str(row.next_due_date or ""),
+                "route": f"/app/preventive-maintenance-plan/{row.name}",
+                "doctype": "Preventive Maintenance Plan",
+                "name": row.name,
+            })
+
+    quick_actions = []
+    for doctype, label, route in (
+        ("Issue", _("Create request"), "/app/issue/new-issue"),
+        ("Facility Work Order", _("Create work order"), "/app/facility-work-order/new-facility-work-order"),
+        ("Facility Inspection", _("Create inspection"), "/app/facility-inspection/new-facility-inspection"),
+        ("Preventive Maintenance Plan", _("Create preventive plan"), "/app/preventive-maintenance-plan/new-preventive-maintenance-plan"),
+        ("Utility Reading", _("Add meter reading"), "/app/utility-reading/new-utility-reading"),
+    ):
+        if frappe.has_permission(doctype, "create"):
+            quick_actions.append({"label": label, "route": route, "doctype": doctype})
 
     return {
         "user_full_name": frappe.db.get_value(
@@ -614,6 +1006,351 @@ def get_cafm_operations_dashboard():
                 "route": "/app/dashboard-view/SLA%20Performance%20Dashboard",
                 "tone": "amber",
             },
+            {
+                "label": _("Preventive due soon"),
+                "value": upcoming_preventive,
+                "detail": _("Due within seven days"),
+                "route": "/app/preventive-maintenance-plan",
+                "tone": "blue",
+            },
+            {
+                "label": _("Open inspections"),
+                "value": unresolved_inspections,
+                "detail": _("Awaiting completion or approval"),
+                "route": "/app/facility-inspection",
+                "tone": "violet",
+            },
         ],
         "work_orders": work_orders,
+        "attention": attention[:8],
+        "today": today_items[:8],
+        "quick_actions": quick_actions,
+    }
+
+
+@frappe.whitelist()
+def get_cafm_request_detail(name):
+    """Return one permission-checked maintenance request for the /cafm preview."""
+    _require_cafm_app_view_access()
+    request = frappe.get_doc("Issue", name)
+    request.check_permission("read")
+    return {
+        "name": request.name,
+        "subject": request.subject or request.name,
+        "description": strip_html_tags(request.description or ""),
+        "priority": request.priority or _("Not set"),
+        "status": request.custom_issue_status or _("New"),
+        "category": request.issue_type or _("Not set"),
+        "company": request.company,
+        "facility_location": request.custom_facility_location,
+        "asset": request.custom_asset,
+        "work_order": request.custom_work_order,
+        "raised_by": request.raised_by,
+        "creation": request.creation,
+        "modified": request.modified,
+    }
+
+
+@frappe.whitelist()
+def get_cafm_maintenance_requests():
+    _require_cafm_app_view_access()
+    if not frappe.has_permission("Issue", "read"):
+        frappe.throw(_("You do not have permission to view maintenance requests."), frappe.PermissionError)
+    rows = frappe.get_list("Issue", fields=["name", "subject", "priority", "custom_issue_status", "custom_facility_location", "issue_type", "modified"], order_by="modified desc", limit_page_length=100)
+    return {"requests": rows, "can_create": frappe.has_permission("Issue", "create")}
+
+
+@frappe.whitelist()
+def get_cafm_work_orders_by_priority():
+    _require_cafm_app_view_access()
+    if not frappe.has_permission("Facility Work Order", "read"):
+        frappe.throw(_("You do not have permission to view work orders."), frappe.PermissionError)
+    rows = frappe.get_list("Facility Work Order", fields=["priority"], limit_page_length=10000)
+    counts = {}
+    for row in rows:
+        priority = row.get("priority") or _("Not set")
+        counts[priority] = counts.get(priority, 0) + 1
+    return [{"label": label, "value": value} for label, value in counts.items()]
+
+
+@frappe.whitelist()
+def get_facility_management_analytics():
+    """Return live, permission-filtered data for the Frappe UI facility dashboard."""
+    _require_cafm_app_view_access()
+
+    overview = get_cafm_operations_dashboard()
+    work_orders = frappe.get_list(
+        "Facility Work Order",
+        fields=[
+            "priority",
+            "category",
+            "work_order_status",
+            "facility_location",
+            "material_cost",
+            "external_service_cost",
+        ],
+        limit_page_length=10000,
+    )
+    history = (
+        frappe.get_list(
+            "Facility Asset Maintenance History",
+            fields=["asset", "downtime_hours", "closed_on", "actual_end", "creation"],
+            limit_page_length=10000,
+        )
+        if frappe.has_permission("Facility Asset Maintenance History", "read")
+        else []
+    )
+
+    def grouped(rows, field, value_field=None, limit=None):
+        values = {}
+        for row in rows:
+            label = row.get(field) or _("Not set")
+            value = (row.get(value_field) or 0) if value_field else 1
+            values[label] = values.get(label, 0) + value
+        result = [
+            {"label": label, "value": round(value, 2)}
+            for label, value in values.items()
+        ]
+        result.sort(key=lambda item: item["value"], reverse=True)
+        return result[:limit] if limit else result
+
+    location_names = {
+        row["name"]: row.get("site") or row["name"]
+        for row in frappe.get_list(
+            "Facility Location",
+            fields=["name", "site"],
+            limit_page_length=10000,
+        )
+    }
+
+    maintenance_costs = {}
+    for row in work_orders:
+        site = location_names.get(
+            row.get("facility_location"),
+            row.get("facility_location") or _("Not set"),
+        )
+        for cost_type, fieldname in (
+            (_("Material cost"), "material_cost"),
+            (_("External service cost"), "external_service_cost"),
+        ):
+            key = (site, cost_type)
+            maintenance_costs[key] = maintenance_costs.get(key, 0) + (
+                row.get(fieldname) or 0
+            )
+
+    sites_with_cost = {
+        site
+        for (site, _cost_type), amount in maintenance_costs.items()
+        if amount
+    }
+    maintenance_cost_by_site = [
+        {"site": site, "cost_type": cost_type, "amount": round(amount, 2)}
+        for (site, cost_type), amount in sorted(maintenance_costs.items())
+        if site in sites_with_cost
+    ]
+
+    preventive_plans = (
+        frappe.get_list(
+            "Preventive Maintenance Plan",
+            filters={"is_active": 1},
+            fields=["next_due_date"],
+            limit_page_length=10000,
+        )
+        if frappe.has_permission("Preventive Maintenance Plan", "read")
+        else []
+    )
+    weekdays = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    preventive_counts = {}
+    for row in preventive_plans:
+        if not row.get("next_due_date"):
+            continue
+        due_date = getdate(row["next_due_date"])
+        key = (f"Week {((due_date.day - 1) // 7) + 1}", weekdays[due_date.weekday()])
+        preventive_counts[key] = preventive_counts.get(key, 0) + 1
+
+    preventive_maintenance_calendar = [
+        {
+            "week": f"Week {week}",
+            "day": day,
+            "plans": preventive_counts.get((f"Week {week}", day), 0),
+        }
+        for day in weekdays
+        for week in range(1, 6)
+    ]
+
+    return {
+        "user_full_name": overview["user_full_name"],
+        "stats": overview["stats"],
+        "work_orders_by_priority": grouped(work_orders, "priority"),
+        "work_orders_by_category": [
+            row
+            for row in grouped(work_orders, "category")
+            if not str(row["label"]).casefold().startswith("cafm test")
+        ][:8],
+        "work_orders_by_status": grouped(work_orders, "work_order_status"),
+        "asset_downtime": grouped(history, "asset", "downtime_hours", limit=8),
+        "recurring_asset_failures": grouped(history, "asset", limit=8),
+        "maintenance_cost_by_site": maintenance_cost_by_site,
+        "preventive_maintenance_calendar": preventive_maintenance_calendar,
+    }
+
+
+@frappe.whitelist()
+def get_utility_consumption_analytics():
+    """Return live data for the Frappe UI utility dashboard."""
+    from cafm import dashboard as dashboard_api
+    from cafm.cafm.dashboard_chart_source.monthly_utility_cost.monthly_utility_cost import (
+        get as monthly_cost,
+    )
+    from cafm.utilities import get_utility_forecast
+    from frappe.utils import add_to_date
+
+    dashboard_api._require_utility_dashboard_access()
+    cards = [
+        ("Utility meters reported", dashboard_api.get_utility_meters_reported()),
+        ("Monthly estimated cost", dashboard_api.get_monthly_utility_cost()),
+        ("Usage change", dashboard_api.get_utility_usage_change()),
+        ("Forecast cost", dashboard_api.get_forecast_cost()),
+        ("Monthly carbon estimate", dashboard_api.get_monthly_carbon()),
+        ("Peak electricity usage", dashboard_api.get_peak_electricity_usage()),
+        ("Peak water usage", dashboard_api.get_peak_water_usage()),
+        ("Peak natural gas usage", dashboard_api.get_peak_natural_gas_usage()),
+        ("Peak fuel usage", dashboard_api.get_peak_fuel_usage()),
+    ]
+
+    current_month = now_datetime().date().replace(day=1)
+    months = [add_to_date(current_month, months=offset) for offset in range(-5, 1)]
+    next_month = add_to_date(current_month, months=1)
+    readings = frappe.get_all(
+        "Utility Reading",
+        filters={
+            "reading_date": [
+                "between",
+                [str(months[0]), str(add_to_date(current_month, months=1, days=-1))],
+            ],
+            "is_opening_reading": 0,
+        },
+        fields=["reading_date", "utility_type", "consumption", "utility_meter"],
+    )
+    meter_rows = frappe.get_all(
+        "Utility Meter",
+        filters={"is_active": 1},
+        fields=["name", "utility_type", "unit_of_measure"],
+    )
+    utility_types = ("Electricity", "Water", "Natural Gas", "Fuel", "Other")
+    month_index = {(month.year, month.month): index for index, month in enumerate(months)}
+    actual = {utility_type: [0.0] * len(months) for utility_type in utility_types}
+    for row in readings:
+        utility_type = row.utility_type if row.utility_type in actual else "Other"
+        index = month_index.get((row.reading_date.year, row.reading_date.month))
+        if index is not None:
+            actual[utility_type][index] += float(row.consumption or 0)
+
+    forecast_totals = {utility_type: 0.0 for utility_type in utility_types}
+    units = {}
+    for meter in meter_rows:
+        utility_type = meter.utility_type if meter.utility_type in forecast_totals else "Other"
+        forecast = get_utility_forecast(meter.name)
+        forecast_totals[utility_type] += float(forecast.get("forecast_usage") or 0)
+        units[utility_type] = meter.unit_of_measure or units.get(utility_type) or "units"
+
+    labels = [str(month)[:10] for month in months] + [str(next_month)[:10]]
+    usage_forecast = []
+    for utility_type in utility_types:
+        values = [round(value, 2) for value in actual[utility_type]]
+        predicted = round(forecast_totals[utility_type], 2)
+        if not any(values) and not predicted:
+            continue
+        historical_forecast = []
+        for index in range(len(values)):
+            prior_values = values[max(0, index - 3) : index]
+            historical_forecast.append(
+                round(sum(prior_values) / len(prior_values), 2)
+                if prior_values
+                else None
+            )
+        usage_forecast.append(
+            {
+                "utility_type": utility_type,
+                "unit": units.get(utility_type, "units"),
+                "labels": labels,
+                "actual": values + [None],
+                "forecast": historical_forecast + [predicted],
+            }
+        )
+
+    monthly_cost_data = monthly_cost()
+    cost_datasets = monthly_cost_data.get("datasets") or []
+    cost_length = len(monthly_cost_data.get("labels") or [])
+    monthly_cost_trend = [
+        round(
+            sum(
+                float((dataset.get("values") or [0] * cost_length)[index] or 0)
+                for dataset in cost_datasets
+            ),
+            2,
+        )
+        for index in range(cost_length)
+    ]
+
+    reported_meters = [set() for _month in months]
+    for row in readings:
+        index = month_index.get((row.reading_date.year, row.reading_date.month))
+        if index is not None and row.utility_meter:
+            reported_meters[index].add(row.utility_meter)
+    meter_trend = [len(meters) for meters in reported_meters]
+
+    card_payload = [
+        {"label": label, "value": card.get("value")}
+        for label, card in cards
+    ]
+    card_payload[0].update(
+        {
+            "target": len(meter_rows),
+            "trend": meter_trend,
+            "trend_type": "bar",
+        }
+    )
+    card_payload[1].update(
+        {
+            "compact": True,
+            "trend": monthly_cost_trend,
+            "selectable_comparison": True,
+        }
+    )
+    utility_trends = {
+        series["utility_type"]: series["actual"][:-1]
+        for series in usage_forecast
+    }
+    for card_index, utility_type in (
+        (5, "Electricity"),
+        (6, "Water"),
+        (7, "Natural Gas"),
+        (8, "Fuel"),
+    ):
+        card_payload[card_index]["trend"] = utility_trends.get(utility_type, [])
+
+    return {
+        "cards": card_payload,
+        "monthly_cost": monthly_cost_data,
+        "usage_forecast": usage_forecast,
+    }
+
+
+@frappe.whitelist()
+def get_sla_performance_analytics():
+    """Return live data for the Frappe UI SLA dashboard."""
+    from cafm import dashboard as dashboard_api
+    from cafm.cafm.dashboard_chart_source.sla_status_breakdown.sla_status_breakdown import get as sla_breakdown
+
+    dashboard_api._require_sla_dashboard_access()
+    cards = [
+        ("On-track work orders", dashboard_api.get_on_track_work_orders()),
+        ("Response breached", dashboard_api.get_response_breached_work_orders()),
+        ("Resolution breached", dashboard_api.get_resolution_breached_work_orders()),
+        ("SLA met", dashboard_api.get_sla_met_work_orders()),
+    ]
+    return {
+        "cards": [{"label": label, "value": card.get("value")} for label, card in cards],
+        "status_breakdown": sla_breakdown(),
     }
