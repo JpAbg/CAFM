@@ -521,6 +521,7 @@ CAFM_APP_VIEW_ROLES = ("Facility Manager", "Facility Coordinator", "System Manag
 
 
 CAFM_EMBEDDED_DOCTYPES = {
+    "Issue": "custom_issue_status",
     "Facility Work Order": "work_order_status",
     "Preventive Maintenance Plan": "frequency",
     "Facility Inspection": "inspection_status",
@@ -557,21 +558,43 @@ def _require_cafm_creatable_doctype(doctype):
 
 @frappe.whitelist()
 def get_cafm_create_schema(doctype):
-    """Return safe editable fields for the reusable /cafm creation drawer."""
+    """Return editable fields grouped by the DocType's native sections."""
     _require_cafm_creatable_doctype(doctype)
     meta = frappe.get_meta(doctype)
+    # All scalar controls that can be completed in a native Frappe form. Layout,
+    # display-only and child-table controls are deliberately excluded below.
     supported = {
-        "Data", "Small Text", "Text", "Long Text", "Text Editor", "Select", "Link",
-        "Date", "Datetime", "Time", "Check", "Int", "Float", "Currency", "Percent",
-    }
-    preferred = {
-        "subject", "plan_name", "location_name", "provider_name", "meter_name",
-        "company", "facility_location", "asset", "category", "issue_type", "priority",
-        "work_order_type", "frequency", "status", "description", "planned_start",
-        "planned_end", "planned_date", "next_due_date", "reading_date",
+        "Autocomplete", "Barcode", "Code", "Color", "Currency", "Data", "Date",
+        "Datetime", "Duration", "Float", "Geolocation", "HTML Editor", "Int", "JSON",
+        "Link", "Long Text", "Markdown Editor", "Password", "Percent", "Phone", "Rating",
+        "Select", "Signature", "Small Text", "Text", "Text Editor", "Time", "Check", "Table",
     }
     fields = []
+    sections = []
+    current = {"value": "general", "label": _("General"), "fields": []}
+    column_index = 0
+
+    def finish_section():
+        nonlocal current
+        if current["fields"]:
+            sections.append(current)
+
+    section_index = 0
     for field in meta.fields:
+        if field.fieldtype in ("Section Break", "Tab Break"):
+            finish_section()
+            section_index += 1
+            column_index = 0
+            label = field.label or (_("General") if not sections else _("Details {0}").format(section_index))
+            current = {
+                "value": field.fieldname or f"section_{section_index}",
+                "label": label,
+                "fields": [],
+            }
+            continue
+        if field.fieldtype == "Column Break":
+            column_index += 1
+            continue
         if (
             not field.fieldname
             or field.fieldtype not in supported
@@ -581,8 +604,6 @@ def get_cafm_create_schema(doctype):
             or field.fieldname in ("naming_series", "name")
         ):
             continue
-        if not field.reqd and not field.in_list_view and field.fieldname not in preferred:
-            continue
         item = {
             "fieldname": field.fieldname,
             "label": field.label or field.fieldname,
@@ -590,8 +611,42 @@ def get_cafm_create_schema(doctype):
             "required": bool(field.reqd),
             "options": [],
             "default": None,
+            "column": column_index,
+            "description": field.description or "",
+            "placeholder": field.placeholder or "",
+            "depends_on": field.depends_on or "",
+            "mandatory_depends_on": field.mandatory_depends_on or "",
+            "read_only_depends_on": field.read_only_depends_on or "",
         }
-        if field.fieldtype == "Select":
+        if field.fieldtype == "Table" and field.options:
+            item["child_doctype"] = field.options
+            item["child_fields"] = []
+            child_meta = frappe.get_meta(field.options)
+            for child_field in child_meta.fields:
+                if (
+                    not child_field.fieldname
+                    or child_field.fieldtype not in supported - {"Table"}
+                    or child_field.hidden
+                    or child_field.read_only
+                    or child_field.permlevel
+                    or child_field.fieldname in ("name", "naming_series")
+                ):
+                    continue
+                child_item = {
+                    "fieldname": child_field.fieldname,
+                    "label": child_field.label or child_field.fieldname,
+                    "fieldtype": child_field.fieldtype,
+                    "required": bool(child_field.reqd),
+                    "options": [],
+                    "default": child_field.default if child_field.default not in (None, "") else None,
+                }
+                if child_field.fieldtype == "Select":
+                    child_item["options"] = [value for value in (child_field.options or "").splitlines() if value]
+                elif child_field.fieldtype == "Link" and child_field.options and frappe.has_permission(child_field.options, "read"):
+                    child_item["link_doctype"] = child_field.options
+                    child_item["options"] = frappe.get_list(child_field.options, pluck="name", order_by="modified desc", limit_page_length=100)
+                item["child_fields"].append(child_item)
+        elif field.fieldtype == "Select":
             item["options"] = [value for value in (field.options or "").splitlines() if value]
         elif field.fieldtype == "Link" and field.options and frappe.has_permission(field.options, "read"):
             item["link_doctype"] = field.options
@@ -605,17 +660,48 @@ def get_cafm_create_schema(doctype):
         if default not in (None, "") and not str(default).startswith(("eval:", "user:", "Today")):
             item["default"] = default
         fields.append(item)
+        current["fields"].append(item)
+    finish_section()
 
-    fields.sort(key=lambda field: (
-        not field["required"],
-        field["fieldname"] not in preferred,
-        next((index for index, meta_field in enumerate(meta.fields) if meta_field.fieldname == field["fieldname"]), 999),
-    ))
+    # ERPNext's Asset metadata places the custom Warranty Provider after an
+    # otherwise display-only QR section. Keep the editable field with the rest
+    # of the warranty inputs, and give the unlabeled depreciation block a useful
+    # native-style title.
+    if doctype == "Asset":
+        warranty = next((section for section in sections if section["value"] == "custom_warranty_section"), None)
+        qr_section = next((section for section in sections if section["value"] == "custom_asset_qr_section"), None)
+        if warranty and qr_section:
+            warranty["fields"].extend(qr_section["fields"])
+            sections.remove(qr_section)
+        for section in sections:
+            if section["value"] == "section_break_33" or section["label"] == _("Details 9"):
+                section["label"] = _("Depreciation Schedule")
+
     return {
         "doctype": doctype,
         "label": doctype,
-        "fields": fields[:24],
+        "fields": fields,
+        "sections": sections,
     }
+
+
+@frappe.whitelist()
+def search_cafm_link(doctype, fieldname, txt=""):
+    """Search a Link field using its real target DocType and current user permissions."""
+    _require_cafm_creatable_doctype(doctype)
+    field = frappe.get_meta(doctype).get_field(fieldname)
+    if not field or field.fieldtype != "Link" or not field.options:
+        frappe.throw(_("This is not a valid Link field."), frappe.PermissionError)
+    if field.hidden or field.read_only or field.permlevel or not frappe.has_permission(field.options, "read"):
+        frappe.throw(_("You cannot search this linked record type."), frappe.PermissionError)
+    filters = {"name": ["like", f"%{txt}%"]} if txt else None
+    return frappe.get_list(
+        field.options,
+        filters=filters,
+        fields=["name"],
+        order_by="modified desc",
+        limit_page_length=20,
+    )
 
 
 @frappe.whitelist(methods=["POST"])
@@ -651,71 +737,125 @@ def create_cafm_record(doctype, values):
 
 @frappe.whitelist()
 def get_cafm_doctype_detail(doctype, name):
-    """Return a permission-checked, useful field summary for an embedded record."""
+    """Return populated fields grouped by the DocType's native sections."""
     _require_cafm_app_view_access()
     if doctype != "Issue" and doctype not in CAFM_EMBEDDED_DOCTYPES:
         frappe.throw(_("This record type is not available in the CAFM view."), frappe.PermissionError)
     document = frappe.get_doc(doctype, name)
     document.check_permission("read")
     meta = frappe.get_meta(doctype)
-    excluded_types = {
-        "Section Break", "Column Break", "Tab Break", "Table", "Table MultiSelect",
-        "HTML", "Button", "Fold", "Heading", "Attach", "Attach Image",
+    excluded = {
+        "Column Break", "HTML", "Button", "Fold", "Heading",
+        "Attach", "Attach Image", "Table MultiSelect",
     }
-    preferred = (
-        meta.title_field, CAFM_EMBEDDED_DOCTYPES.get(doctype), "priority", "custom_issue_status", "status",
-        "work_order_status", "facility_location", "asset", "company", "category",
-        "type", "frequency", "planned_start", "planned_end", "next_due_date",
-        "modified",
-    )
-    selected = []
-    for fieldname in preferred:
-        if fieldname and fieldname not in selected and meta.has_field(fieldname):
-            selected.append(fieldname)
+    sections = []
+    current = {"value": "general", "label": _("General"), "fields": []}
+
+    def finish_section():
+        nonlocal current
+        if current["fields"]:
+            sections.append(current)
+
+    section_index = 0
     for field in meta.fields:
+        if field.fieldtype in ("Section Break", "Tab Break"):
+            finish_section()
+            section_index += 1
+            current = {
+                "value": field.fieldname or f"section_{section_index}",
+                "label": field.label or (_("General") if not sections else _("Details {0}").format(section_index)),
+                "fields": [],
+            }
+            continue
         if (
-            len(selected) >= 12
-            or not field.fieldname
-            or field.fieldname in selected
-            or field.fieldtype in excluded_types
+            not field.fieldname
+            or field.fieldtype in excluded
             or field.hidden
+            or field.permlevel
         ):
             continue
         value = document.get(field.fieldname)
-        if value not in (None, "") and (field.in_list_view or field.in_standard_filter):
-            selected.append(field.fieldname)
-
-    fields = []
-    description = ""
-    for fieldname in selected:
-        field = meta.get_field(fieldname)
-        value = document.get(fieldname)
         if value in (None, ""):
             continue
-        if field.fieldtype in ("Text", "Small Text", "Long Text", "Text Editor"):
-            if not description:
-                description = strip_html_tags(str(value))
-            continue
-        fields.append({
-            "fieldname": fieldname,
-            "label": field.label or fieldname,
+        if field.fieldtype == "Table":
+            value = _("{0} item(s)").format(len(value or []))
+        elif field.fieldtype in ("Text", "Small Text", "Long Text", "Text Editor"):
+            value = strip_html_tags(str(value))
+        elif field.fieldtype == "Check":
+            value = _("Yes") if cint(value) else _("No")
+        current["fields"].append({
+            "fieldname": field.fieldname,
+            "label": field.label or field.fieldname,
             "fieldtype": field.fieldtype,
             "value": value,
         })
-    if not description:
-        for field in meta.fields:
-            if field.fieldtype in ("Text", "Small Text", "Long Text", "Text Editor"):
-                value = document.get(field.fieldname)
-                if value:
-                    description = strip_html_tags(str(value))
-                    break
+    finish_section()
+
+    fields = [field for section in sections for field in section["fields"]]
+    actions = []
+    roles = set(frappe.get_roles())
+    if doctype == "Asset":
+        qr_url = document.get("custom_asset_qr_code")
+        if qr_url:
+            actions.extend([
+                {"id": "show_qr", "label": _("Show QR Code"), "icon": "qr", "url": qr_url},
+                {"id": "download_qr", "label": _("Download QR Code"), "icon": "download", "url": qr_url},
+            ])
+        if frappe.has_permission("Issue", "create"):
+            actions.append({
+                "id": "create_maintenance_request", "label": _("Create Maintenance Request"), "icon": "maintenance",
+                "defaults": {
+                    "company": document.get("company"), "custom_facility_location": document.get("custom_asset_location"),
+                    "custom_asset": document.name,
+                    "subject": _("Maintenance request for {0}").format(document.get("asset_name") or document.name),
+                },
+            })
+        if frappe.has_permission("Facility Work Order", "read"):
+            actions.append({"id": "view_open_work_orders", "label": _("View Open Work Orders"), "icon": "maintenance"})
+        actions.append({"id": "view_maintenance_history", "label": _("View Maintenance History"), "icon": "section"})
+    elif doctype == "Issue":
+        if document.get("status") == "Closed":
+            if frappe.has_permission("Issue", "write", document.name):
+                actions.append({"id": "reopen_issue", "label": _("Reopen"), "icon": "maintenance"})
+        if document.get("custom_work_order") and frappe.has_permission("Facility Work Order", "read", document.get("custom_work_order")):
+            actions.append({"id": "open_work_order", "label": _("Open Work Order"), "icon": "maintenance", "work_order": document.get("custom_work_order")})
+        elif not document.get("custom_work_order") and frappe.has_permission("Facility Work Order", "create"):
+            actions.append({"id": "create_work_order", "label": _("Create Work Order"), "icon": "maintenance"})
+    elif doctype == "Facility Work Order":
+        if document.get("inspection_template") and frappe.has_permission("Facility Inspection", "create"):
+            actions.append({"id": "create_inspection", "label": _("Create Inspection"), "icon": "section"})
+        if document.get("materials") and document.get("work_order_status") in ("Assigned", "In Progress", "Pending", "Resolved") and frappe.has_permission(doctype, "write", document.name) and not ("Vendor" in roles and not roles.intersection({"System Manager", "Facility Manager", "Facility Coordinator"})):
+            actions.append({"id": "issue_materials", "label": _("Issue Materials"), "icon": "assets"})
+        if frappe.has_permission("Facility Vendor Quotation", "create"):
+            actions.append({
+                "id": "request_vendor_quotation", "label": _("Request Vendor Quotation"), "icon": "vendors",
+                "defaults": {"quotation_name": _("Quotation for {0}").format(document.name), "work_order": document.name, "company": document.get("company"), "service_provider": document.get("vendor"), "service_contract": document.get("service_contract"), "scope_of_work": document.get("work_description")},
+            })
+        if frappe.has_permission("Facility Vendor Quotation", "read"):
+            actions.append({"id": "view_vendor_quotations", "label": _("View Vendor Quotations"), "icon": "vendors"})
+        if frappe.has_permission("Facility Service Contract", "read"):
+            actions.append({"id": "view_matching_contracts", "label": _("View Matching Contracts"), "icon": "section"})
+    elif doctype == "Preventive Maintenance Plan" and document.get("is_active") and document.get("next_due_date") and frappe.has_permission(doctype, "write", document.name):
+        actions.append({"id": "generate_next_work_order", "label": _("Generate Next Work Order"), "icon": "maintenance"})
+    elif doctype == "Facility Inspection" and document.get("work_order") and frappe.has_permission("Facility Work Order", "read", document.get("work_order")):
+        actions.append({"id": "open_work_order", "label": _("Open Work Order"), "icon": "maintenance", "work_order": document.get("work_order")})
+    elif doctype == "Facility Vendor Quotation" and document.get("quotation_status") == "Received" and frappe.has_permission(doctype, "write", document.name) and roles.intersection({"Facility Manager", "System Manager"}):
+        actions.append({"id": "select_quotation", "label": _("Select Quotation"), "icon": "section"})
+
+    if frappe.has_permission(doctype, "print", document.name):
+        actions.extend([
+            {"id": "print", "label": _("Print"), "icon": "print"},
+            {"id": "download_pdf", "label": _("Download PDF"), "icon": "download"},
+        ])
+
 
     return {
         "doctype": doctype,
         "name": document.name,
-        "title": document.get(meta.title_field) if meta.title_field else document.name,
+        "title": (document.get(meta.title_field) if meta.title_field else None) or document.name,
         "fields": fields,
-        "description": description,
+        "sections": sections,
+        "actions": actions,
         "route": f"/app/{frappe.scrub(doctype).replace('_', '-')}/{document.name}",
     }
 
@@ -1026,38 +1166,6 @@ def get_cafm_operations_dashboard():
         "today": today_items[:8],
         "quick_actions": quick_actions,
     }
-
-
-@frappe.whitelist()
-def get_cafm_request_detail(name):
-    """Return one permission-checked maintenance request for the /cafm preview."""
-    _require_cafm_app_view_access()
-    request = frappe.get_doc("Issue", name)
-    request.check_permission("read")
-    return {
-        "name": request.name,
-        "subject": request.subject or request.name,
-        "description": strip_html_tags(request.description or ""),
-        "priority": request.priority or _("Not set"),
-        "status": request.custom_issue_status or _("New"),
-        "category": request.issue_type or _("Not set"),
-        "company": request.company,
-        "facility_location": request.custom_facility_location,
-        "asset": request.custom_asset,
-        "work_order": request.custom_work_order,
-        "raised_by": request.raised_by,
-        "creation": request.creation,
-        "modified": request.modified,
-    }
-
-
-@frappe.whitelist()
-def get_cafm_maintenance_requests():
-    _require_cafm_app_view_access()
-    if not frappe.has_permission("Issue", "read"):
-        frappe.throw(_("You do not have permission to view maintenance requests."), frappe.PermissionError)
-    rows = frappe.get_list("Issue", fields=["name", "subject", "priority", "custom_issue_status", "custom_facility_location", "issue_type", "modified"], order_by="modified desc", limit_page_length=100)
-    return {"requests": rows, "can_create": frappe.has_permission("Issue", "create")}
 
 
 @frappe.whitelist()
