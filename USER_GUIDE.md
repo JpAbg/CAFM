@@ -6,9 +6,49 @@ For installation, updates, and technical requirements, see [README.md](README.md
 
 ## Start here
 
-Open **Facilities** from the Desk sidebar. This CAFM workspace provides shortcuts to locations, assets, requests, work orders, preventive maintenance, utilities, and reports. The **Facility Management Dashboard** shows maintenance requests, work orders, priorities, costs, overdue work, and preventive maintenance.
+Facility Managers and Facility Coordinators start from the **Welcome Workspace** and select **Open CAFM Operations**, or open `/cafm` directly. This full-page app view brings maintenance, assets, vendors, SLA records, utilities, and analytics into one interface. The standard **Facilities** workspace remains available when a native ERPNext/Frappe view is needed.
 
 Use the search bar to find an Asset, Facility Location, Maintenance Request, or Facility Work Order by name.
+
+## CAFM Operations app view
+
+The `/cafm` page is the main operational interface for Facility Managers and Coordinators. Its fixed sidebar groups records into:
+
+- **Maintenance:** Requests, Work Orders, Preventive Maintenance, and Inspections.
+- **Assets:** Assets, Locations, and Categories.
+- **Vendors & SLA:** Providers, Contracts, Quotations, and SLA Policies.
+- **Utilities:** Meters, Readings, Bills, and Budgets.
+- **Analytics:** the CAFM dashboards displayed inside the app view.
+
+Select **Collapse** to reduce the sidebar to icons. Select the account area while the sidebar is collapsed to open it temporarily. The **Open Facilities Workspace** control remains available at the bottom of the sidebar.
+
+Each record category supports three views without leaving `/cafm`:
+
+- **Table** for a compact list of records and their important fields.
+- **Dashboard** for category totals and grouped operational information.
+- **Kanban** for records grouped by their relevant status or category.
+
+Use the search field to filter the records currently displayed. Select a record to open its in-page details window. The separate **Open full record** button opens the native Frappe form when its complete functionality is needed.
+
+### Creating records from CAFM Operations
+
+Select **Create _Record Type_** at the top of a category. The in-page form follows the corresponding native DocType layout, including sections, columns, required fields, conditional fields, searchable linked records, Select menus, and editable child tables where applicable.
+
+The normal Frappe permissions, linked-record validation, and document validation still apply. A field or Create button that the signed-in user is not allowed to use is not made available by the app view.
+
+### Record actions
+
+The **Actions** menu appears at the top of an in-page record window when at least one permitted action applies to that record and its current state. Examples include:
+
+- Assets: show or download the QR code, create a maintenance request, view open work, and view maintenance history.
+- Requests: create a Work Order, or open the linked Work Order when one already exists.
+- Work Orders: create an inspection, issue materials, request or view vendor quotations, and view matching service contracts.
+- Preventive Maintenance Plans: generate the next Work Order when the plan is active and due.
+- Inspections: open the linked Work Order.
+- Received Vendor Quotations: select the quotation when the signed-in user has permission.
+- Printable records: print or download a PDF.
+
+Actions that do not apply are hidden. For example, **Issue Materials** requires material rows and an eligible Work Order status, while **Select Quotation** requires a quotation in Received status.
 
 ## Roles
 
@@ -67,11 +107,17 @@ The Asset page shows warranty details, open maintenance work, and completed main
 
 ### Asset QR codes
 
-Every Asset has an **Asset QR Code** section. Open **QR Code - Show QR Code** to preview it, then choose **Download QR Code** in the pop-up to save the label for printing.
+Open an Asset from `/cafm`, select **Actions - Show QR Code** to preview its code, then select **Download QR Code** to save the label for printing. The native Asset form also provides its QR actions.
 
 Place the printed QR label on the real equipment. A signed-in technician scans it to open the correct Asset record without searching manually. From the record, choose **Maintenance - Create Maintenance Request**.
 
 QR codes respect normal Asset permissions. They do not grant access to users who cannot use CAFM.
+
+### Asset maintenance history
+
+Open an Asset in `/cafm` and select **Actions - View Maintenance History**. The in-page history lists completed Work Orders with their type, category, priority, completion date, downtime, labour hours, and material cost. Select a Work Order number to open that Work Order in the same in-page record viewer.
+
+History is generated from closed Work Orders linked to the Asset. If the history is empty, confirm that the completed Work Order has the correct Asset and has been closed properly.
 
 > **Note:** A phone must be able to reach the CAFM site address. QR codes created on a localhost development site work only on that computer. Use an office-network or hosted URL before rolling out printed labels.
 
@@ -238,7 +284,7 @@ For reliable results, record readings at consistent intervals and do not change 
 
 ## Dashboard and reports
 
-Use the dashboards for a quick operational view:
+Select **Analytics** in `/cafm` to use the dashboard selector and view the dashboards without leaving the CAFM Operations interface. Use the dashboards for a quick operational view:
 
 - **Facility Management Dashboard:** requests, work orders, priorities, costs, overdue work, preventive maintenance, and escalations.
 - **SLA Performance Dashboard:** response and resolution performance, breached work, and SLA trends.
