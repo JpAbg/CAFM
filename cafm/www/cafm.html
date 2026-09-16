@@ -437,13 +437,81 @@ frappe.ready(function () {
     });
   };
 
+  const navHoverDescriptions = {
+    "/cafm": "See the current facilities overview, urgent work, and quick actions.",
+    "/app/issue": "Review employee requests, priorities, progress, and linked maintenance work.",
+    "/app/facility-work-order": "Assign, schedule, and monitor corrective and preventive maintenance work.",
+    "/app/preventive-maintenance-plan": "Plan recurring maintenance and keep upcoming work from being missed.",
+    "/app/facility-inspection": "Review scheduled inspections, results, findings, and follow-up work.",
+    "/app/asset": "Browse facility assets, condition, ownership, warranty, and maintenance history.",
+    "/app/facility-location": "Manage the sites, buildings, floors, and rooms used across CAFM records.",
+    "/app/asset-category": "Organize assets into consistent operational and reporting categories.",
+    "/app/facility-service-provider": "Review external providers and the services they deliver.",
+    "/app/facility-service-contract": "Track vendor agreements, coverage, dates, and contract terms.",
+    "/app/facility-vendor-quotation": "Compare vendor offers connected to maintenance work.",
+    "/app/facility-sla-policy": "Define response and resolution targets for facility requests.",
+    "/app/utility-meter": "Manage the meters used to measure facility consumption.",
+    "/app/utility-reading": "Review recorded utility usage and consumption history.",
+    "/app/utility-bill": "Track utility invoices, billing periods, and actual costs.",
+    "/app/utility-budget": "Compare planned utility spending with actual performance.",
+    "/dashboard": "Explore facility, SLA, and utility dashboards and operational trends."
+  };
+  const navGroupHoverDescriptions = {
+    "Maintenance": "Handle requests, work orders, preventive plans, and inspections.",
+    "Assets": "Manage facility assets, their locations, and categories.",
+    "Vendors & SLA": "Manage providers, contracts, quotations, and service targets.",
+    "Utilities": "Track meters, readings, bills, and utility budgets."
+  };
+
   function navItem(label, href, active, iconName, hideArrow) {
-    return '<button class="cafm-app-nav-item ' + (active ? "active" : "") + '" data-route="' + href + '" title="' + label + '">' + icon(iconName) + '<span>' + label + '</span>' + (hideArrow ? '' : '<b>></b>') + '</button>';
+    const description = navHoverDescriptions[href] || "";
+    return '<button class="cafm-app-nav-item ' + (active ? "active" : "") + '" data-route="' + href + '"' + (description ? ' data-hover-card-title="' + esc(label) + '" data-hover-card-description="' + esc(description) + '"' : ' title="' + esc(label) + '"') + '>' + icon(iconName) + '<span>' + label + '</span>' + (hideArrow ? '' : '<b>></b>') + '</button>';
+  }
+
+  function bindNavHoverCards() {
+    const triggers = root.querySelectorAll('.cafm-app-sidebar [data-hover-card-description]');
+    if (!triggers.length) return;
+    const card = document.createElement('div');
+    card.className = 'cafm-sidebar-hover-card';
+    card.hidden = true;
+    card.innerHTML = '<p></p>';
+    root.appendChild(card);
+    let openTimer;
+    let closeTimer;
+    const cancelOpen = () => clearTimeout(openTimer);
+    const cancelClose = () => clearTimeout(closeTimer);
+    const close = () => {
+      cancelOpen();
+      closeTimer = setTimeout(() => {
+        card.classList.remove('is-visible');
+        setTimeout(() => { if (!card.classList.contains('is-visible')) card.hidden = true; }, 160);
+      }, 300);
+    };
+    const open = trigger => {
+      cancelClose();
+      openTimer = setTimeout(() => {
+        const bounds = trigger.getBoundingClientRect();
+        card.querySelector('p').textContent = trigger.dataset.hoverCardDescription;
+        card.style.left = Math.max(12, Math.min(bounds.right + 10, window.innerWidth - 247)) + 'px';
+        card.style.top = Math.max(12, Math.min(bounds.top - 8, window.innerHeight - 130)) + 'px';
+        card.hidden = false;
+        requestAnimationFrame(() => card.classList.add('is-visible'));
+      }, 100);
+    };
+    triggers.forEach(trigger => {
+      trigger.addEventListener('mouseenter', () => open(trigger));
+      trigger.addEventListener('mouseleave', close);
+      trigger.addEventListener('focus', () => open(trigger));
+      trigger.addEventListener('blur', close);
+    });
+    card.addEventListener('mouseenter', cancelClose);
+    card.addEventListener('mouseleave', close);
   }
 
   function navGroup(label, items, expanded, iconName) {
+    const description = navGroupHoverDescriptions[label] || "";
     return '<details class="cafm-app-nav-group"' + (expanded ? ' open' : '') + '>'
-      + '<summary title="' + label + '">' + icon(iconName) + '<span>' + label + '</span><b>&#8964;</b></summary>'
+      + '<summary' + (description ? ' data-hover-card-description="' + esc(description) + '"' : ' title="' + esc(label) + '"') + '>' + icon(iconName) + '<span>' + label + '</span><b>&#8964;</b></summary>'
       + '<div class="cafm-app-nav-group-items">' + items.map(item => navItem(item[0], item[1], false, item[2], true)).join("") + '</div>'
       + '</details>';
   }
@@ -470,7 +538,7 @@ frappe.ready(function () {
       + '      <button class="cafm-app-user cafm-app-account-button" type="button" aria-expanded="false"><span>' + esc(name.split(" ").filter(Boolean).slice(0, 2).map(word => word[0]).join("").toUpperCase()) + '</span><div><small>FACILITY TEAM</small><strong>' + esc(name) + '</strong></div><b>&#8964;</b></button>'
       + '      <div class="cafm-app-account-menu" hidden>'
       + '        <button data-route="/app"><span>Apps</span></button>'
-      + '        <button data-route="/app/user-profile"><span>Settings</span></button>'
+      + '        <button data-route="/app/user/Administrator"><span>Settings</span></button>'
       + '        <button class="cafm-app-account-about"><span>About</span></button>'
       + '        <button class="cafm-app-account-logout"><span>Logout</span></button>'
       + '      </div>'
@@ -483,7 +551,7 @@ frappe.ready(function () {
       + navGroup("Utilities", [["Meters", "/app/utility-meter"], ["Readings", "/app/utility-reading"], ["Bills", "/app/utility-bill"], ["Budgets", "/app/utility-budget"]], false, "utilities")
       + navItem("Analytics", "/dashboard", false, "analytics", true)
       + '    </nav>'
-      + '    <a class="cafm-app-workspace-link" href="/app/Workspaces/Facilities" title="Open Facilities Workspace">' + icon("workspace") + '<span>Open Facilities Workspace</span></a>'
+      + '    <a class="cafm-app-workspace-link" href="/app/Workspaces/Facilities">' + icon("workspace") + '<span>Open Facilities Workspace</span></a>'
       + '    <button class="cafm-app-collapse" type="button"><span class="cafm-app-collapse-icon"></span><span>Collapse</span></button>'
       + '  </aside>'
       + '  <main class="cafm-app-main">'
@@ -514,6 +582,7 @@ frappe.ready(function () {
       window.cafmOpenRecordPreview(button.dataset.previewDoctype, button.dataset.previewName);
     });
     root.querySelectorAll("[data-create-doctype]").forEach(button => button.onclick = () => window.cafmOpenCreateDrawer(button.dataset.createDoctype));
+    bindNavHoverCards();
     root.querySelector(".cafm-app-refresh").onclick = load;
     const shell = root.querySelector(".cafm-app-shell");
     const collapseButton = root.querySelector(".cafm-app-collapse");
@@ -526,7 +595,7 @@ frappe.ready(function () {
       shell.classList.toggle("is-collapsed", collapsed);
       collapseButton.querySelector("span:not(.cafm-app-collapse-icon)").textContent = collapsed ? "Expand" : "Collapse";
       collapseButton.querySelector(".cafm-app-collapse-icon").innerHTML = icon(collapsed ? "right" : "left");
-      collapseButton.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+      collapseButton.removeAttribute("title");
       localStorage.setItem("cafm-sidebar-collapsed", collapsed ? "1" : "0");
     };
     const openAccountMenu = () => {
@@ -1090,6 +1159,12 @@ body:has(#page-cafm) .cafm-app-shell { min-height:100vh; border:0; border-radius
 .cafm-app-nav-group.is-closing summary b {
   transform:rotate(0deg);
 }
+
+.cafm-sidebar-hover-card { position:fixed; z-index:950; box-sizing:border-box; width:235px; padding:10px 11px; border:1px solid #b9d2e0; border-radius:9px; background:#fff; color:#31566f; box-shadow:0 10px 24px rgba(17,53,78,.18); opacity:0; transform:translateX(-5px) scale(.985); transition:opacity .14s ease,transform .14s ease; pointer-events:auto; }
+.cafm-sidebar-hover-card[hidden] { display:none; }
+.cafm-sidebar-hover-card.is-visible { opacity:1; transform:translateX(0) scale(1); }
+.cafm-sidebar-hover-card p { margin:0; color:#526f85; font-size:10px; line-height:1.45; }
+@media(max-width:760px){.cafm-sidebar-hover-card{display:none!important}}
 
 .cafm-app-workspace-link{display:flex;align-items:center;justify-content:center;gap:8px;transition:background .16s ease,color .16s ease,border-color .16s ease,transform .16s ease}.cafm-app-workspace-link .cafm-app-icon{width:17px;height:17px;flex:0 0 17px}.cafm-app-workspace-link:hover{transform:translateY(-1px)}.cafm-app-shell.is-collapsed .cafm-app-workspace-link{width:44px;height:44px;box-sizing:border-box;margin:18px auto 0;padding:0;border-radius:11px}.cafm-app-shell.is-collapsed .cafm-app-workspace-link .cafm-app-icon{width:20px;height:20px;flex-basis:20px}
 </style>
