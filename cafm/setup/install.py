@@ -34,6 +34,7 @@ WORKFLOW_ACTIONS = (
     "Put on Hold",
     "Resume",
     "Resolve",
+    "Complete Work",
     "Close",
     "Reopen",
     "Reject",
@@ -1102,6 +1103,7 @@ def ensure_workflows():
             ("In Progress", "Resolve", "Resolved", "Technician"),
             ("Resolved", "Close", "Closed", "Facility Manager"),
             ("Resolved", "Reopen", "In Progress", "Facility Manager"),
+            ("Closed", "Reopen", "In Progress", "Facility Manager"),
         ],
     )
 
@@ -1132,9 +1134,11 @@ def ensure_workflows():
             ("Pending", "Resume", "In Progress", "Technician"),
             ("Pending", "Resume", "In Progress", "Vendor"),
             ("In Progress", "Resolve", "Resolved", "Technician"),
+            ("In Progress", "Complete Work", "Closed", "Technician"),
             ("In Progress", "Resolve", "Resolved", "Vendor"),
             ("Resolved", "Close", "Closed", "Facility Manager"),
             ("Resolved", "Reopen", "In Progress", "Facility Manager"),
+            ("Closed", "Reopen", "In Progress", "Facility Manager"),
         ],
     )
 
