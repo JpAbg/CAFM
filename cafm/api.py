@@ -98,10 +98,8 @@ STATUS_ACTIONS = {
     ("In Progress", "Pending"): "Put on Hold",
     ("Pending", "In Progress"): "Resume",
     ("In Progress", "Resolved"): "Resolve",
-    ("In Progress", "Closed"): "Complete Work",
     ("Resolved", "Closed"): "Close",
     ("Resolved", "In Progress"): "Reopen",
-    ("Closed", "In Progress"): "Reopen",
 }
 
 ALLOWED_ATTACHMENT_EXTENSIONS = {
@@ -378,29 +376,6 @@ def update_work_order_status(work_order_name, status, pending_reason=None):
     return _work_order_dict(work_order)
 
 
-@frappe.whitelist(methods=["POST"])
-def reopen_cafm_record(doctype, name):
-    """Reopen a closed maintenance request or work order through its workflow."""
-    _require_authenticated()
-    if doctype not in ("Issue", "Facility Work Order"):
-        frappe.throw(_("This record type cannot be reopened."))
-
-    document = frappe.get_doc(doctype, name)
-    document.check_permission("write")
-    state_field = (
-        "custom_issue_status" if doctype == "Issue" else "work_order_status"
-    )
-    if document.get(state_field) != "Closed":
-        frappe.throw(_("Only a closed record can be reopened."))
-
-    document = apply_workflow(document, "Reopen")
-    return {
-        "doctype": document.doctype,
-        "name": document.name,
-        "status": document.get(state_field),
-    }
-
-
 @frappe.whitelist(methods=["GET"])
 def list_assigned_work_orders(status=None, page=1, page_length=20):
     """List work orders assigned to the current internal technician."""
@@ -473,12 +448,12 @@ def submit_technician_resolution(
     technician_notes=None,
     checklist=None,
 ):
-    """Save execution results and close an in-progress technician work order."""
+    """Save execution results and resolve an in-progress work order."""
     _require_authenticated()
     work_order = frappe.get_doc("Facility Work Order", work_order_name)
     work_order.check_permission("write")
     if work_order.work_order_status != "In Progress":
-        frappe.throw(_("Only an In Progress Work Order can be completed."))
+        frappe.throw(_("Only an In Progress Work Order can be resolved."))
     if not resolution_summary:
         frappe.throw(_("Resolution Summary is required."))
 
@@ -488,7 +463,7 @@ def submit_technician_resolution(
         work_order.technician_notes = technician_notes
     work_order.actual_end = work_order.actual_end or now_datetime()
     work_order.save()
-    work_order = apply_workflow(work_order, "Complete Work")
+    work_order = apply_workflow(work_order, "Resolve")
     return _work_order_dict(work_order, include_details=True)
 
 
@@ -839,16 +814,14 @@ def get_cafm_doctype_detail(doctype, name):
             actions.append({"id": "view_open_work_orders", "label": _("View Open Work Orders"), "icon": "maintenance"})
         actions.append({"id": "view_maintenance_history", "label": _("View Maintenance History"), "icon": "section"})
     elif doctype == "Issue":
-        if document.get("custom_issue_status") == "Closed":
+        if document.get("status") == "Closed":
             if frappe.has_permission("Issue", "write", document.name):
-                actions.append({"id": "reopen_record", "label": _("Reopen"), "icon": "maintenance"})
+                actions.append({"id": "reopen_issue", "label": _("Reopen"), "icon": "maintenance"})
         if document.get("custom_work_order") and frappe.has_permission("Facility Work Order", "read", document.get("custom_work_order")):
             actions.append({"id": "open_work_order", "label": _("Open Work Order"), "icon": "maintenance", "work_order": document.get("custom_work_order")})
         elif not document.get("custom_work_order") and frappe.has_permission("Facility Work Order", "create"):
             actions.append({"id": "create_work_order", "label": _("Create Work Order"), "icon": "maintenance"})
     elif doctype == "Facility Work Order":
-        if document.get("work_order_status") == "Closed" and frappe.has_permission(doctype, "write", document.name):
-            actions.append({"id": "reopen_record", "label": _("Reopen"), "icon": "maintenance"})
         if document.get("inspection_template") and frappe.has_permission("Facility Inspection", "create"):
             actions.append({"id": "create_inspection", "label": _("Create Inspection"), "icon": "section"})
         if document.get("materials") and document.get("work_order_status") in ("Assigned", "In Progress", "Pending", "Resolved") and frappe.has_permission(doctype, "write", document.name) and not ("Vendor" in roles and not roles.intersection({"System Manager", "Facility Manager", "Facility Coordinator"})):

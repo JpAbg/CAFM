@@ -17,12 +17,9 @@ from frappe.tests.utils import FrappeTestCase
 
 from cafm.api import (
     create_maintenance_request,
-    get_cafm_doctype_detail,
-    get_cafm_doctype_view,
     get_work_order,
     list_assigned_work_orders,
     list_maintenance_requests,
-    reopen_cafm_record,
     submit_technician_resolution,
     update_work_order_status,
     upload_work_order_attachment,
@@ -44,7 +41,6 @@ from cafm.inspections import (
     generate_inspection_occurrence,
     generate_scheduled_inspections,
 )
-from cafm.portal import submit_portal_request
 from cafm.materials import issue_materials
 from cafm.notifications import (
     notify_overdue_escalations,
@@ -347,27 +343,6 @@ class TestFacilityWorkOrder(FrappeTestCase):
         apply_workflow(work_order, "Close")
         work_order.reload()
         self.assertEqual(work_order.work_order_status, "Closed")
-        detail = get_cafm_doctype_detail("Facility Work Order", work_order.name)
-        displayed_status = next(
-            field["value"]
-            for field in detail["fields"]
-            if field["fieldname"] == "work_order_status"
-        )
-        self.assertEqual(displayed_status, "Closed")
-
-        result = reopen_cafm_record("Facility Work Order", work_order.name)
-        self.assertEqual(result["status"], "In Progress")
-        work_order.reload()
-        self.assertEqual(work_order.work_order_status, "In Progress")
-        self.assertIsNone(work_order.closed_by)
-        self.assertIsNone(work_order.closed_on)
-        self.assertIsNone(work_order.actual_end)
-        self.assertEqual(
-            frappe.db.get_value(
-                "Issue", issue.name, "custom_issue_status"
-            ),
-            "In Progress",
-        )
 
         frappe.set_user(self.other_requester_user)
         with self.assertRaises(frappe.PermissionError):
@@ -1124,24 +1099,6 @@ class TestFacilityWorkOrder(FrappeTestCase):
             1,
         )
 
-    def test_facility_portal_request_appears_in_cafm_view(self):
-        frappe.set_user(self.requester_user)
-        submitted = submit_portal_request(
-            subject=f"Portal request visible in CAFM {self.suffix}",
-            facility_location=self.location,
-            issue_type=self.issue_type,
-            priority="High",
-            description="Request submitted through the employee facility portal.",
-        )
-        self.assertEqual(submitted["status"], "New")
-
-        frappe.set_user(self.manager_user)
-        request_view = get_cafm_doctype_view("Issue")
-        self.assertIn(
-            submitted["name"],
-            {row["name"] for row in request_view["rows"]},
-        )
-
     def test_authenticated_mobile_api_covers_request_to_resolution(self):
         frappe.set_user(self.requester_user)
         request = create_maintenance_request(
@@ -1237,23 +1194,23 @@ class TestFacilityWorkOrder(FrappeTestCase):
             work_order_name,
         )
 
-        completed = submit_technician_resolution(
+        resolved = submit_technician_resolution(
             work_order_name,
             resolution_summary="Fixture repaired and tested.",
             technician_notes="No further leak was observed.",
         )
-        self.assertEqual(completed["status"], "Closed")
+        self.assertEqual(resolved["status"], "Resolved")
         self.assertEqual(
             frappe.db.get_value(
                 "Issue",
                 request["name"],
                 "custom_issue_status",
             ),
-            "Closed",
+            "Resolved",
         )
         self.assertIn(
             attachment["name"],
-            [row["name"] for row in completed["attachments"]],
+            [row["name"] for row in resolved["attachments"]],
         )
 
     def test_mobile_api_rejects_guest_access(self):

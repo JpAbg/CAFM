@@ -89,40 +89,6 @@ frappe.ready(function () {
         preview.querySelector("[data-generic-preview-open]").onclick = () => window.location.href = item.route;
         function download(url, filename) { const link=document.createElement('a'); link.href=url; link.download=filename.replace(/[^a-z0-9_.-]/gi,'-'); document.body.appendChild(link); link.click(); link.remove(); }
         const showRecord = (recordDoctype, recordName) => { preview.remove(); setDrawerScrollLock(false); window.cafmOpenRecordPreview(recordDoctype, recordName); };
-        const openListDialog = config => {
-          preview.insertAdjacentHTML('beforeend','<div class="cafm-history-dialog"><button type="button" class="cafm-history-backdrop" data-list-close></button><section><header><div><p>'+esc(config.eyebrow)+'</p><h3>'+esc(item.title||item.name)+'</h3><span>'+esc(config.subtitle)+'</span></div><button type="button" data-list-close aria-label="Close">&times;</button></header><div class="cafm-history-content"><div class="cafm-record-preview-loading">Loading '+esc(config.loading||'records')+'...</div></div></section></div>');
-          const dialog=preview.querySelector('.cafm-history-dialog');
-          dialog.querySelectorAll('[data-list-close]').forEach(button=>button.onclick=()=>dialog.remove());
-          const content=dialog.querySelector('.cafm-history-content');
-          const cell=(column,value)=>{
-            const text=value===null||value===undefined||value===''?'-':String(value);
-            if(!/(priority|status|type|frequency)/.test(String(column.fieldname).toLowerCase())) return '<td>'+esc(text)+'</td>';
-            return '<td><span class="cafm-subtle-badge '+badgeClass(text,column.fieldname)+'"><span>'+esc(text)+'</span></span></td>';
-          };
-          const renderRows = rows => {
-            const columns = config.columns || (rows.length ? Object.keys(rows[0]).map(fieldname => ({fieldname, label: frappe.unscrub ? frappe.unscrub(fieldname) : fieldname})) : []);
-            content.innerHTML = rows.length
-              ? '<div class="cafm-history-table-wrap"><table><thead><tr>'+columns.map(column=>'<th>'+esc(column.label)+'</th>').join('')+'</tr></thead><tbody>'
-                +rows.map(row=>'<tr>'+columns.map((column,index)=>index===0
-                  ? '<td><button type="button" data-list-record="'+esc(row.name)+'">'+esc(row[column.fieldname]||row.name)+'</button></td>'
-                  : cell(column,row[column.fieldname])).join('')+'</tr>').join('')
-                +'</tbody></table></div>'
-              : '<div class="cafm-app-empty"><strong>'+esc(config.emptyTitle)+'</strong><span>'+esc(config.emptyDetail)+'</span></div>';
-            content.querySelectorAll('[data-list-record]').forEach(link=>link.onclick=()=>{dialog.remove();showRecord(config.doctype,link.dataset.listRecord);});
-          };
-          frappe.call({
-            method: config.method || 'frappe.client.get_list',
-            args: config.method ? (config.args||{}) : {
-              doctype:config.doctype,
-              filters:config.filters,
-              fields:['name'].concat(config.columns.map(column=>column.fieldname).filter(fieldname=>fieldname!=='name')),
-              order_by:config.order_by||'modified desc',
-              limit_page_length:0
-            },
-            callback: response => renderRows(response.message||[]),
-            error: error => { content.innerHTML='<div class="cafm-app-empty"><strong>Could not load records</strong><span>'+esc((error&&error.message)||'You may not have permission to view them.')+'</span></div>'; }
-          });
-        };
         const actionWrap = preview.querySelector('.cafm-record-actions');
         if (actionWrap) {
           const actionToggle = actionWrap.querySelector('.cafm-record-actions-toggle');
@@ -138,14 +104,7 @@ frappe.ready(function () {
               const qr=preview.querySelector('.cafm-qr-dialog'); qr.querySelectorAll('[data-qr-close]').forEach(x=>x.onclick=()=>qr.remove()); qr.querySelector('[data-qr-download]').onclick=()=>download(action.url,item.name+'-cafm-qr.svg');
             } else if (action.id === 'download_qr') download(action.url,item.name+'-cafm-qr.svg');
             else if (action.id === 'create_maintenance_request') { preview.remove(); setDrawerScrollLock(false); window.cafmOpenCreateDrawer('Issue', action.defaults || {}); }
-            else if (action.id === 'view_open_work_orders') openListDialog({
-              eyebrow:'OPEN WORK ORDERS', subtitle:'Work orders still open for this asset', loading:'work orders',
-              doctype:'Facility Work Order',
-              filters:{ asset:item.name, work_order_status:['not in',['Closed','Cancelled']] },
-              order_by:'planned_end asc',
-              columns:[{fieldname:'name',label:'Work order'},{fieldname:'subject',label:'Subject'},{fieldname:'work_order_type',label:'Type'},{fieldname:'priority',label:'Priority'},{fieldname:'work_order_status',label:'Status'},{fieldname:'planned_end',label:'Due'}],
-              emptyTitle:'No open work orders', emptyDetail:'New and in-progress work for this asset will appear here.'
-            });
+            else if (action.id === 'view_open_work_orders') window.location.href='/app/facility-work-order?asset=' + encodeURIComponent(item.name) + '&work_order_status=%5B%22not+in%22%2C%5B%22Closed%22%2C%22Cancelled%22%5D%5D';
             else if (action.id === 'view_maintenance_history') {
               preview.insertAdjacentHTML('beforeend','<div class="cafm-history-dialog"><button type="button" class="cafm-history-backdrop" data-history-close></button><section><header><div><p>ASSET HISTORY</p><h3>' + esc(item.title || item.name) + '</h3><span>Completed maintenance work for this asset</span></div><button type="button" data-history-close aria-label="Close">&times;</button></header><div class="cafm-history-content"><div class="cafm-record-preview-loading">Loading maintenance history...</div></div></section></div>');
               const historyDialog=preview.querySelector('.cafm-history-dialog');
@@ -158,26 +117,13 @@ frappe.ready(function () {
                 content.querySelectorAll('[data-history-work-order]').forEach(link=>link.onclick=()=>showRecord('Facility Work Order',link.dataset.historyWorkOrder));
               },error:()=>{historyDialog.querySelector('.cafm-history-content').innerHTML='<div class="cafm-app-empty"><strong>Could not load history</strong><span>You may not have permission to view these work orders.</span></div>';}});
             }
-            else if (action.id === 'reopen_record') frappe.call({method:'cafm.api.reopen_cafm_record',type:'POST',args:{doctype:item.doctype,name:item.name},freeze:true,freeze_message:'Reopening record...',callback:r=>{if(r.message)showRecord(item.doctype,item.name);}});
+            else if (action.id === 'reopen_issue') frappe.call({method:'frappe.client.set_value',args:{doctype:'Issue',name:item.name,fieldname:'status',value:'Open'},callback:()=>showRecord('Issue',item.name)});
             else if (action.id === 'create_work_order') frappe.call({ method:'cafm.cafm.doctype.facility_work_order.facility_work_order.create_from_issue', args:{issue_name:item.name}, freeze:true, freeze_message:'Creating Facility Work Order...', callback:r=>{ if(r.message)showRecord('Facility Work Order',r.message); } });
             else if (action.id === 'create_inspection') frappe.call({method:'cafm.cafm.doctype.facility_inspection.facility_inspection.create_from_work_order',args:{work_order_name:item.name},freeze:true,freeze_message:'Creating inspection...',callback:r=>{if(r.message)showRecord('Facility Inspection',r.message);}});
             else if (action.id === 'issue_materials') frappe.call({method:'cafm.materials.issue_materials',args:{work_order_name:item.name},freeze:true,freeze_message:'Issuing materials from stock...',callback:r=>{if(r.message)window.location.href='/app/stock-entry/'+encodeURIComponent(r.message);}});
             else if (action.id === 'request_vendor_quotation') { preview.remove(); setDrawerScrollLock(false); window.cafmOpenCreateDrawer('Facility Vendor Quotation',action.defaults||{}); }
-            else if (action.id === 'view_vendor_quotations') openListDialog({
-              eyebrow:'VENDOR QUOTATIONS', subtitle:'Quotations received for this work order', loading:'quotations',
-              doctype:'Facility Vendor Quotation',
-              filters:{ work_order:item.name },
-              order_by:'creation desc',
-              columns:[{fieldname:'name',label:'Quotation'},{fieldname:'service_provider',label:'Provider'},{fieldname:'total_amount',label:'Amount'},{fieldname:'quotation_status',label:'Status'},{fieldname:'valid_until',label:'Valid till'}],
-              emptyTitle:'No vendor quotations', emptyDetail:'Requested quotations for this work order will appear here.'
-            });
-            else if (action.id === 'view_matching_contracts') openListDialog({
-              eyebrow:'MATCHING CONTRACTS', subtitle:'Active service contracts that cover this work order', loading:'contracts',
-              doctype:'Facility Service Contract',
-              method:'cafm.cafm.doctype.facility_service_contract.facility_service_contract.get_matching_service_contracts',
-              args:{ work_order_name:item.name },
-              emptyTitle:'No matching contracts', emptyDetail:'No active service contract matches this work order.'
-            });
+            else if (action.id === 'view_vendor_quotations') window.location.href='/app/facility-vendor-quotation?work_order='+encodeURIComponent(item.name);
+            else if (action.id === 'view_matching_contracts') frappe.call({method:'cafm.cafm.doctype.facility_service_contract.facility_service_contract.get_matching_service_contracts',args:{work_order_name:item.name},callback:r=>{const rows=r.message||[];frappe.msgprint({title:'Matching Service Contracts',message:rows.length?rows.map(row=>'<p><a href="/app/facility-service-contract/'+encodeURIComponent(row.name)+'">'+esc(row.name)+'</a></p>').join(''):'No active Service Contract matches this work order.'});}});
             else if (action.id === 'generate_next_work_order') frappe.call({method:'cafm.cafm.doctype.preventive_maintenance_plan.preventive_maintenance_plan.generate_next_work_order',args:{plan_name:item.name},freeze:true,freeze_message:'Generating preventive work order...',callback:r=>{if(r.message)showRecord('Facility Work Order',r.message);}});
             else if (action.id === 'open_work_order') showRecord('Facility Work Order',action.work_order);
             else if (action.id === 'select_quotation') frappe.confirm('Select this quotation and reject the other open quotations for this work order?',()=>frappe.call({method:'cafm.cafm.doctype.facility_vendor_quotation.facility_vendor_quotation.select_vendor_quotation',args:{quotation_name:item.name},freeze:true,freeze_message:'Selecting vendor quotation...',callback:r=>{if(r.message)showRecord('Facility Work Order',r.message);}}));
@@ -209,7 +155,7 @@ frappe.ready(function () {
       }, 180);
     };
     setDrawerScrollLock(true);
-    root.insertAdjacentHTML("beforeend", '<div class="cafm-record-preview cafm-create-drawer" role="dialog" aria-modal="true"><button class="cafm-record-preview-backdrop" data-create-close aria-label="Close"></button><div class="cafm-create-alerts" role="status" aria-live="polite" aria-atomic="false"></div><section class="cafm-record-preview-panel"><div class="cafm-record-preview-loading">Loading creation form...</div></section></div>');
+    root.insertAdjacentHTML("beforeend", '<div class="cafm-record-preview cafm-create-drawer" role="dialog" aria-modal="true"><button class="cafm-record-preview-backdrop" data-create-close aria-label="Close"></button><section class="cafm-record-preview-panel"><div class="cafm-record-preview-loading">Loading creation form...</div></section></div>');
     const drawer = root.querySelector(".cafm-create-drawer");
     drawer.querySelector("[data-create-close]").onclick = () => close(false);
     const fieldAttributes = field => ' data-cafm-field="' + esc(field.fieldname) + '" data-depends-on="' + esc(field.depends_on || "") + '" data-mandatory-depends-on="' + esc(field.mandatory_depends_on || "") + '" data-read-only-depends-on="' + esc(field.read_only_depends_on || "") + '" data-native-required="' + (field.required ? "1" : "0") + '"';
@@ -226,8 +172,8 @@ frappe.ready(function () {
       }
       if (field.fieldtype === "Select") {
         const options = [""].concat(field.options || []);
-        const optionButtons = (field.options || []).map(option => '<button type="button" role="option" data-cafm-select-value="' + esc(option) + '"' + (option === value ? ' aria-selected="true"' : '') + '>' + esc(option) + '</button>').join("");
-        return '<div class="cafm-create-field cafm-create-select"' + attributes + '>' + label + '<select class="cafm-create-native-select" id="cafm-create-' + index + '" name="' + esc(field.fieldname) + '" tabindex="-1" aria-hidden="true">' + options.map(option => '<option value="' + esc(option) + '"' + (option === '' ? ' disabled' : '') + (option === value ? ' selected' : '') + '>' + esc(option || "Select " + field.label) + '</option>').join("") + '</select><button class="cafm-create-dropdown-button" type="button" data-cafm-select-toggle aria-haspopup="listbox" aria-expanded="false"><span>' + esc(value || "Select " + field.label) + '</span><b>⌄</b></button><div class="cafm-create-dropdown-menu" role="listbox" hidden>' + optionButtons + '</div>' + description + '</div>';
+        const optionButtons = options.map(option => '<button type="button" role="option" data-cafm-select-value="' + esc(option) + '"' + (option === value ? ' aria-selected="true"' : '') + '>' + esc(option || "Select " + field.label) + '</button>').join("");
+        return '<div class="cafm-create-field cafm-create-select"' + attributes + '>' + label + '<select class="cafm-create-native-select" id="cafm-create-' + index + '" name="' + esc(field.fieldname) + '" tabindex="-1" aria-hidden="true">' + options.map(option => '<option value="' + esc(option) + '"' + (option === value ? ' selected' : '') + '>' + esc(option) + '</option>').join("") + '</select><button class="cafm-create-dropdown-button" type="button" data-cafm-select-toggle aria-haspopup="listbox" aria-expanded="false"><span>' + esc(value || "Select " + field.label) + '</span><b>⌄</b></button><div class="cafm-create-dropdown-menu" role="listbox" hidden>' + optionButtons + '</div>' + description + '</div>';
       }
       if (field.fieldtype === "Link") {
         return '<div class="cafm-create-field cafm-create-link"' + attributes + '>' + label + '<div class="cafm-create-link-control"><input id="cafm-create-' + index + '" name="' + esc(field.fieldname) + '" value="' + esc(value) + '" placeholder="' + esc(placeholder) + '" autocomplete="off"' + required + '><span>⌕</span><div class="cafm-create-link-menu" hidden></div></div><small>' + esc(field.link_doctype || "Linked record") + '</small>' + description + '</div>';
@@ -257,7 +203,7 @@ frappe.ready(function () {
       const childControl = (field, rowIndex) => {
         const id = 'cafm-child-' + rowIndex + '-' + field.fieldname;
         const required = field.required ? ' required' : '';
-        if (field.fieldtype === 'Select') return '<select id="' + esc(id) + '" data-child-field="' + esc(field.fieldname) + '"' + required + '><option value="" disabled selected>Select ' + esc(field.label) + '</option>' + (field.options || []).map(option => '<option value="' + esc(option) + '">' + esc(option) + '</option>').join('') + '</select>';
+        if (field.fieldtype === 'Select') return '<select id="' + esc(id) + '" data-child-field="' + esc(field.fieldname) + '"' + required + '><option value="">Select</option>' + (field.options || []).map(option => '<option value="' + esc(option) + '">' + esc(option) + '</option>').join('') + '</select>';
         if (field.fieldtype === 'Link') { const list=id+'-list'; return '<input id="' + esc(id) + '" data-child-field="' + esc(field.fieldname) + '" list="' + esc(list) + '" autocomplete="off"' + required + '><datalist id="' + esc(list) + '">' + (field.options || []).map(option => '<option value="' + esc(option) + '"></option>').join('') + '</datalist>'; }
         if (field.fieldtype === 'Check') return '<input id="' + esc(id) + '" type="checkbox" data-child-field="' + esc(field.fieldname) + '" value="1">';
         const type = field.fieldtype === 'Date' ? 'date' : field.fieldtype === 'Datetime' ? 'datetime-local' : field.fieldtype === 'Time' ? 'time' : ['Int','Float','Currency','Percent','Duration','Rating'].includes(field.fieldtype) ? 'number' : 'text';
@@ -331,72 +277,25 @@ frappe.ready(function () {
       callback: response => {
         const schema = response.message || {};
         const fields = schema.fields || [];
-        const prepareField = field => {
-          const hasInitialValue = Object.prototype.hasOwnProperty.call(initialValues, field.fieldname) && initialValues[field.fieldname] !== null;
-          if (hasInitialValue) field.default = initialValues[field.fieldname];
-          else if (field.fieldtype === 'Select') field.default = null;
-        };
-        fields.forEach(prepareField);
-        (schema.sections || []).forEach(section => (section.fields || []).forEach(prepareField));
+        fields.forEach(field => { if (Object.prototype.hasOwnProperty.call(initialValues, field.fieldname) && initialValues[field.fieldname] !== null) field.default = initialValues[field.fieldname]; });
         const sections = schema.sections && schema.sections.length ? schema.sections : [{ value: "details", label: "Details", fields }];
-        const fieldSections = Object.fromEntries(sections.flatMap(section => (section.fields || []).map(field => [field.fieldname, section.label || "Details"])));
         drawer.querySelector(".cafm-record-preview-panel").innerHTML = '<header><div><p>CREATE RECORD</p><h2>Create ' + esc(schema.label || doctype) + '</h2><span>Complete the required information below.</span></div><button type="button" data-create-close aria-label="Close">&times;</button></header>'
-          + '<form class="cafm-create-form" novalidate>' + drawerSections(sections, renderCreateFields) + '<div class="cafm-create-error" hidden></div><footer><button type="button" class="cafm-record-preview-secondary" data-create-close>Cancel</button><button type="submit" class="cafm-record-preview-primary">Create ' + esc(schema.label || doctype) + '</button></footer></form>';
+          + '<form class="cafm-create-form">' + drawerSections(sections, renderCreateFields) + '<div class="cafm-create-error" hidden></div><footer><button type="button" class="cafm-record-preview-secondary" data-create-close>Cancel</button><button type="submit" class="cafm-record-preview-primary">Create ' + esc(schema.label || doctype) + '</button></footer></form>';
         drawer.querySelectorAll("[data-create-close]").forEach(button => button.onclick = () => close(false));
         const form = drawer.querySelector(".cafm-create-form");
         bindCreateControls(form, doctype, fields);
-        const showMissingAlert = sectionLabel => {
-          const alerts = drawer.querySelector('.cafm-create-alerts');
-          if (!alerts || alerts.children.length >= 3) return;
-          const alert = document.createElement('div');
-          alert.className = 'cafm-create-alert';
-          alert.innerHTML = '<span aria-hidden="true">!</span><div><strong>Required information missing</strong><p>Complete ' + esc(sectionLabel) + ' before creating this record.</p></div>';
-          alerts.appendChild(alert);
-          setTimeout(() => {
-            alert.classList.add('is-leaving');
-            setTimeout(() => alert.remove(), 220);
-          }, 3000);
-        };
         form.onsubmit = event => {
           event.preventDefault();
           const submit = form.querySelector('button[type="submit"]');
           const errorBox = form.querySelector(".cafm-create-error");
-          let missingControl = null;
-          let missingLabel = '';
           const missing = fields.find(field => {
             const wrapper = form.querySelector('[data-cafm-field="' + CSS.escape(field.fieldname) + '"]');
             const control = form.elements[field.fieldname];
-            if (!wrapper || wrapper.hidden) return false;
-            if (field.fieldtype === "Table") {
-              const rows = [...wrapper.querySelectorAll('.cafm-create-child-row')];
-              if (!rows.length) {
-                if (wrapper.dataset.currentRequired !== "1") return false;
-                missingControl = wrapper.querySelector('[data-add-child-row]'); missingLabel = field.label; return true;
-              }
-              for (const row of rows) {
-                const missingChild = (field.child_fields || []).find(child => {
-                  if (!child.required) return false;
-                  const childControl = row.querySelector('[data-child-field="' + CSS.escape(child.fieldname) + '"]');
-                  const empty = childControl && (child.fieldtype === 'Check' ? !childControl.checked : !String(childControl.value || '').trim());
-                  if (empty) { missingControl = childControl; missingLabel = child.label; }
-                  return empty;
-                });
-                if (missingChild) return true;
-              }
-              return false;
-            }
-            if (wrapper.dataset.currentRequired !== "1") return false;
-            const empty = control && (field.fieldtype === "Check" ? !control.checked : !String(control.value || '').trim());
-            if (empty) { missingControl = control; missingLabel = field.label; }
-            return empty;
+            if (!wrapper || wrapper.hidden || wrapper.dataset.currentRequired !== "1") return false;
+            if (field.fieldtype === "Table") return !wrapper.querySelector('.cafm-create-child-row');
+            return control && (field.fieldtype === "Check" ? !control.checked : !control.value);
           });
-          if (missing) {
-            errorBox.hidden = true;
-            showMissingAlert(fieldSections[missing.fieldname] || 'Required Details');
-            missingControl?.scrollIntoView({ behavior:'smooth', block:'center' });
-            setTimeout(() => missingControl?.focus(), 180);
-            return;
-          }
+          if (missing) { errorBox.textContent = missing.label + " is required."; errorBox.hidden = false; form.elements[missing.fieldname]?.focus(); return; }
           submit.disabled = true;
           submit.textContent = "Creating...";
           errorBox.hidden = true;
@@ -1051,14 +950,6 @@ body:has(#page-cafm) .cafm-app-shell { min-height:100vh; border:0; border-radius
 .cafm-create-field[hidden] { display:none!important; }
 @media(max-width:700px){.cafm-create-columns{grid-template-columns:1fr}.cafm-create-columns-2,.cafm-create-columns-3,.cafm-create-columns-4{--cafm-columns:1}}
 .cafm-create-error { margin-top:14px; padding:11px 13px; border:1px solid #efb9b9; border-radius:9px; background:#fff0f0; color:#a42e2e; font-size:11px; }
-.cafm-create-alerts { position:fixed; top:78px; right:calc(min(560px,94vw) + 18px); z-index:60; display:flex; flex-direction:column; gap:9px; width:min(330px,calc(100vw - min(560px,94vw) - 54px)); pointer-events:none; }
-.cafm-create-alert { box-sizing:border-box; display:flex; align-items:flex-start; gap:11px; width:100%; padding:13px 14px; border:1px solid #efb1bb; border-radius:11px; background:#fff1f3; color:#94243a; box-shadow:0 12px 28px rgba(108,28,43,.18); animation:cafmCreateAlertIn .22s ease both; }
-.cafm-create-alert>span { display:grid; place-items:center; flex:0 0 25px; width:25px; height:25px; border-radius:50%; background:#d43f5b; color:#fff; font-size:14px; font-weight:900; }
-.cafm-create-alert strong { display:block; margin:1px 0 3px; color:#842038; font-size:12px; }
-.cafm-create-alert p { margin:0; color:#a13e52; font-size:11px; line-height:1.4; }
-.cafm-create-alert.is-leaving { animation:cafmCreateAlertOut .22s ease both; }
-@keyframes cafmCreateAlertIn { from{opacity:0;transform:translateX(28px)} to{opacity:1;transform:translateX(0)} }
-@keyframes cafmCreateAlertOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(28px)} }
 .cafm-create-success { display:grid; place-items:center; min-height:70vh; text-align:center; }
 .cafm-create-success>span { display:grid; place-items:center; width:58px; height:58px; border-radius:50%; background:#dcfce7; color:#15803d; font-size:28px; font-weight:900; }
 .cafm-create-success p { margin:18px 0 4px; color:#438066; font-size:10px; font-weight:800; letter-spacing:.8px; }
@@ -1066,8 +957,6 @@ body:has(#page-cafm) .cafm-app-shell { min-height:100vh; border:0; border-radius
 .cafm-create-success small { color:#71869a; }
 .cafm-create-success>div { display:flex; gap:9px; margin-top:24px; }
 .cafm-create-success button { padding:10px 14px; border-radius:9px; font-size:12px; font-weight:800; cursor:pointer; }
-@media(max-width:940px){.cafm-create-alerts{top:70px;right:calc(min(560px,94vw) + 10px);width:min(280px,calc(100vw - min(560px,94vw) - 26px))}}
-@media(max-width:700px){.cafm-create-alerts{top:70px;right:14px;width:calc(94vw - 28px)}}
 @media(max-width:600px){.cafm-create-grid{grid-template-columns:1fr}.cafm-create-field-wide,.cafm-create-check{grid-column:auto}}
 </style>
 <style>

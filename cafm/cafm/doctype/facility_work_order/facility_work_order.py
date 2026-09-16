@@ -455,12 +455,6 @@ class FacilityWorkOrder(Document):
         if self.work_order_status == "Closed":
             self.closed_by = frappe.session.user
             self.closed_on = self.closed_on or now_datetime()
-        elif self.has_value_changed("work_order_status"):
-            previous = self.get_doc_before_save()
-            if previous and previous.work_order_status == "Closed":
-                self.closed_by = None
-                self.closed_on = None
-                self.actual_end = None
 
     def sync_asset_maintenance_history(self):
         from cafm.asset_maintenance import (
