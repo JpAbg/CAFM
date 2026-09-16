@@ -496,7 +496,7 @@ frappe.ready(function () {
         card.style.top = Math.max(12, Math.min(bounds.top - 8, window.innerHeight - 130)) + 'px';
         card.hidden = false;
         requestAnimationFrame(() => card.classList.add('is-visible'));
-      }, 100);
+      }, 1000);
     };
     triggers.forEach(trigger => {
       trigger.addEventListener('mouseenter', () => open(trigger));
