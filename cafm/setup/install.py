@@ -1,3 +1,5 @@
+import json
+
 import frappe
 from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
 from frappe.custom.doctype.property_setter.property_setter import (
@@ -61,6 +63,7 @@ def setup_cafm():
     ensure_roles()
     ensure_cafm_role_profiles()
     ensure_facilities_workspace_visibility()
+    ensure_facilities_workspace_launchers()
     ensure_normal_cafm_user_default_workspaces()
     ensure_issue_priorities()
     ensure_overdue_escalation_rules()
@@ -170,6 +173,52 @@ def ensure_facilities_workspace_visibility():
     )
 
 
+def ensure_facilities_workspace_launchers():
+    """Expose both supervisor entry points at the top of Facilities."""
+    if not frappe.db.exists("Workspace", "Facilities"):
+        return
+
+    workspace = frappe.get_doc("Workspace", "Facilities")
+    blocks = json.loads(workspace.content or "[]")
+    changed = False
+    if not any(
+        block.get("data", {}).get("shortcut_name") == "Employee Portal"
+        for block in blocks
+    ):
+        insert_at = next(
+            (
+                index + 1
+                for index, block in enumerate(blocks)
+                if block.get("data", {}).get("shortcut_name")
+                == "CAFM Operations"
+            ),
+            1,
+        )
+        blocks.insert(
+            insert_at,
+            {
+                "type": "shortcut",
+                "data": {"shortcut_name": "Employee Portal", "col": 3},
+            },
+        )
+        workspace.content = json.dumps(blocks, separators=(",", ":"))
+        changed = True
+
+    if not any(row.label == "Employee Portal" for row in workspace.shortcuts):
+        workspace.append(
+            "shortcuts",
+            {
+                "label": "Employee Portal",
+                "type": "URL",
+                "url": "/employee%20portal",
+            },
+        )
+        changed = True
+
+    if changed:
+        workspace.save(ignore_permissions=True)
+
+
 def ensure_cafm_user_role_profiles():
     """Replace the unrelated Axiom profile for existing CAFM accounts."""
     from cafm.events.user import apply_cafm_role_profile
@@ -199,7 +248,7 @@ def ensure_cafm_user_role_profiles():
 
 
 def ensure_normal_cafm_user_default_workspaces():
-    """Repair the landing workspace for normal CAFM employees and technicians."""
+    """Repair role-specific CAFM landing workspace fallbacks."""
     normal_roles = {"Requester / Employee", "Technician"}
     supervisor_roles = {"Facility Manager", "Facility Coordinator"}
 
@@ -227,11 +276,9 @@ def ensure_normal_cafm_user_default_workspaces():
         cafm_workspace_roles = normal_roles | supervisor_roles
         if not (roles & cafm_workspace_roles or is_linked_employee):
             continue
+        default_workspace = "Facilities" if roles & supervisor_roles else None
         frappe.db.set_value(
-            "User",
-            user,
-            "default_workspace",
-            "Welcome Workspace",
+            "User", user, "default_workspace", default_workspace,
             update_modified=False,
         )
 

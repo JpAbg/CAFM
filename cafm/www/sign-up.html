@@ -1,0 +1,126 @@
+{% extends "templates/web.html" %}
+
+{% block title %}Sign up{% endblock %}
+
+{% block navbar %}{% endblock %}
+
+{% block page_content %}
+<main class="cafm-sign-up-page">
+    <section class="for-login" aria-labelledby="cafm-sign-up-title">
+        <div class="page-card-head">
+            <img
+                src="/assets/axiom_modules/images/axiom-logo.svg"
+                alt="Axiom"
+                class="app-logo"
+            >
+            <h4 id="cafm-sign-up-title">Sign up to Axiom</h4>
+        </div>
+
+        <div class="login-content page-card cafm-sign-up-card">
+            <form id="cafm-sign-up-form" class="form-signin form-login" novalidate>
+                <div class="page-card-body">
+                    <div class="name-fields">
+                        <div class="form-group">
+                            <label class="form-label" for="cafm-sign-up-first-name">First name</label>
+                            <input
+                                id="cafm-sign-up-first-name"
+                                class="form-control"
+                                name="first_name"
+                                type="text"
+                                placeholder="First name"
+                                autocomplete="given-name"
+                                required
+                                autofocus
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="cafm-sign-up-last-name">Last name</label>
+                            <input
+                                id="cafm-sign-up-last-name"
+                                class="form-control"
+                                name="last_name"
+                                type="text"
+                                placeholder="Last name"
+                                autocomplete="family-name"
+                                required
+                            >
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="cafm-sign-up-email">
+                            <svg class="label-icon email-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                                <use href="#es-line-email"></use>
+                            </svg>
+                            Email
+                        </label>
+                        <div class="input-group email-field">
+                            <input
+                                id="cafm-sign-up-email"
+                                class="form-control"
+                                name="usr"
+                                type="email"
+                                placeholder="jane@example.com"
+                                autocomplete="username"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="cafm-sign-up-password">
+                            <svg class="label-icon password-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                                <use href="#es-line-lock"></use>
+                            </svg>
+                            Password
+                        </label>
+                        <div class="input-group password-field">
+                            <input
+                                id="cafm-sign-up-password"
+                                class="form-control"
+                                name="pwd"
+                                type="password"
+                                placeholder="Enter your password"
+                                autocomplete="new-password"
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="cafm-sign-up-confirm-password">
+                            <svg class="label-icon password-icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+                                <use href="#es-line-lock"></use>
+                            </svg>
+                            Re-enter password
+                        </label>
+                        <div class="input-group password-field">
+                            <input
+                                id="cafm-sign-up-confirm-password"
+                                class="form-control"
+                                name="confirm_password"
+                                type="password"
+                                placeholder="Re-enter your password"
+                                autocomplete="new-password"
+                                required
+                            >
+                        </div>
+                        <div class="toggle-password-row d-flex justify-content-end">
+                            <button class="btn btn-sm btn-outline-secondary toggle-password ml-auto" type="button" aria-label="Show both passwords">Show</button>
+                        </div>
+                    </div>
+
+                    <p id="cafm-sign-up-error" role="alert" hidden></p>
+                </div>
+
+                <div class="page-card-actions">
+                    <button class="btn btn-sm btn-primary btn-block btn-login" type="submit">Sign up</button>
+                </div>
+            </form>
+            <div class="text-center mt-3">
+                <a href="/login" class="text-muted">Back to login</a>
+            </div>
+        </div>
+    </section>
+</main>
+<script src="/assets/cafm/js/sign-up-page.js?v=8"></script>
+{% endblock %}

@@ -1,0 +1,350 @@
+{% extends "templates/web.html" %}
+{% block title %}Technician Portal{% endblock %}
+{% block page_content %}
+<div id="cafm-technician-portal">
+  <div class="tp-loading">Loading your technician workspace...</div>
+</div>
+<script>
+frappe.ready(function () {
+  const root = document.getElementById("cafm-technician-portal");
+  if (!root) return;
+
+  const state = {
+    area: "work",
+    workView: "active",
+    requestView: "all",
+    priority: "All",
+    location: "All",
+    workData: {},
+    requestData: {},
+    selectedWork: null,
+    selectedRequest: null,
+    requestForm: false,
+    editingRequest: null,
+    completing: false,
+    collapsed: localStorage.getItem("cafm-technician-portal-collapsed") === "1",
+    userName: "Technician",
+  };
+
+  const esc = value => String(value || "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const call = (method, args) => new Promise((resolve, reject) => frappe.call({
+    method, args: args || {},
+    callback: response => resolve(response.message || {}),
+    error: reject,
+  }));
+  const displayName = value => {
+    const parts = String(value || "Technician").trim().split(/\s+/).filter(Boolean);
+    return parts.length > 1 ? parts[0] + " " + parts[parts.length - 1] : parts[0] || "Technician";
+  };
+  const initials = value => displayName(value).split(/\s+/).slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase()).join("");
+  const statusKey = value => String(value || "").toLowerCase().replace(/\s+/g, "_");
+
+  function icon(name) {
+    const paths = {
+      brand: '<path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Z"/><path d="m14.8 8.5-2.1 7h-2.3L8.8 11h2.1l.8 2.8.9-3.2a2.8 2.8 0 0 1 2.2-2.1Z"/>',
+      home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/>',
+      assigned: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 3v3h6V3M8 11h8m-8 4h5"/>',
+      progress: '<path d="M20 12a8 8 0 1 1-2.34-5.66L20 8"/><path d="M20 3v5h-5"/>',
+      pending: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+      overdue: '<path d="M10.3 3.6 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 3h.01"/>',
+      completed: '<circle cx="12" cy="12" r="9"/><path d="m8 12 2.6 2.6L16.5 9"/>',
+      requests: '<path d="M4 4h16v13H7l-3 3Z"/><path d="M8 8h8m-8 4h5"/>',
+      new: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8m-4-4h8"/>',
+      resolved: '<path d="M20 11a8 8 0 1 1-4.7-7.3"/><path d="m9 11 3 3 8-8"/>',
+      bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>',
+      refresh: '<path d="M20 12a8 8 0 1 1-2.34-5.66L20 8"/><path d="M20 3v5h-5"/>',
+      down: '<path d="m6 9 6 6 6-6"/>',
+      about: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
+      logout: '<path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h6a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-6"/>',
+      left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>',
+      back: '<path d="m15 18-6-6 6-6"/><path d="M9 12h10"/>', plus: '<path d="M12 5v14M5 12h14"/>'
+    };
+    return '<svg class="tp-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (paths[name] || paths.home) + '</svg>';
+  }
+
+  function navButton(id, label, count, iconName) {
+    const active = (state.area === "work" ? "work-" + state.workView : "request-" + state.requestView) === id;
+    return '<button class="tp-nav-item' + (active ? ' active' : '') + '" data-section="' + id + '" title="' + esc(label) + '"><span class="tp-nav-icon">' + icon(iconName) + '</span><em>' + esc(label) + '</em></button>';
+  }
+
+  function sidebar() {
+    const summary = state.workData.summary || {};
+    const requestRows = state.requestData.requests || [];
+    const requestCount = key => requestRows.filter(row => {
+      const status = statusKey(row.custom_issue_status || "New");
+      return key === "all" ? !["resolved", "closed", "rejected"].includes(status) : key === "resolved" ? ["resolved", "closed"].includes(status) : status === key;
+    }).length;
+    return '<aside class="tp-sidebar">'
+      + '<div class="tp-brand"><span>' + icon("brand") + '</span><div><strong>CAFM</strong><small>TECHNICIAN PORTAL</small></div></div>'
+      + '<div class="tp-account-wrap"><button class="tp-profile tp-account-button" type="button" aria-expanded="false"><span>' + esc(initials(state.userName)) + '</span><div><p>FACILITY TEAM</p><h2>' + esc(displayName(state.userName)) + '</h2></div><b>' + icon("down") + '</b></button>'
+      + '<div class="tp-account-menu" hidden><button class="tp-account-about" type="button">' + icon("about") + '<span>About</span></button><button class="tp-account-logout" type="button">' + icon("logout") + '<span>Log out</span></button></div></div>'
+      + '<div class="tp-nav-group"><small>MY WORK</small>'
+      + navButton("work-active", "All tasks", (summary.assigned || 0) + (summary.in_progress || 0) + (summary.pending || 0), "home")
+      + navButton("work-assigned", "Assigned", summary.assigned || 0, "assigned")
+      + navButton("work-in_progress", "In Progress", summary.in_progress || 0, "progress")
+      + navButton("work-pending", "Pending", summary.pending || 0, "pending")
+      + navButton("work-overdue", "Overdue", summary.overdue || 0, "overdue")
+      + navButton("work-completed", "Completed", undefined, "completed") + '</div>'
+      + '<div class="tp-nav-group"><small>MY REQUESTS</small>'
+      + navButton("request-all", "All requests", requestCount("all"), "requests")
+      + navButton("request-new", "New", requestCount("new"), "new")
+      + navButton("request-in_progress", "In Progress", requestCount("in_progress"), "progress")
+      + navButton("request-resolved", "Resolved", requestCount("resolved"), "resolved") + '</div>'
+      + '<button class="tp-create-request" type="button"><span>' + icon("plus") + '</span><em>Create request</em></button>'
+      + '<p class="tp-note">Assigned work and requests submitted by your account only.</p>'
+      + '<button class="tp-collapse" type="button"><span class="tp-collapse-icon">' + icon(state.collapsed ? "right" : "left") + '</span><em>' + (state.collapsed ? "Expand" : "Collapse") + '</em></button>'
+      + '</aside>';
+  }
+
+  function workFilters() {
+    const locations = state.workData.locations || [];
+    const options = (values, current, allLabel) => '<option value="All">' + allLabel + '</option>' + values.map(value => '<option value="' + esc(value) + '"' + (value === current ? ' selected' : '') + '>' + esc(value) + '</option>').join("");
+    return '<section class="tp-filters"><label>Task range<select data-work-filter="view">'
+      + [["active", "All active tasks"], ["assigned", "Assigned"], ["in_progress", "In Progress"], ["pending", "Pending"], ["overdue", "Overdue"], ["completed", "Completed — last 30 days"]].map(item => '<option value="' + item[0] + '"' + (state.workView === item[0] ? ' selected' : '') + '>' + item[1] + '</option>').join("")
+      + '</select></label><label>Priority<select data-work-filter="priority">' + options(["Critical", "High", "Medium", "Low"], state.priority, "All priorities") + '</select></label>'
+      + '<label>Location<select data-work-filter="location">' + options(locations, state.location, "All locations") + '</select></label></section>';
+  }
+
+  function workContent() {
+    const jobs = state.workData.work_orders || [];
+    const titles = {active: ["ALL ACTIVE TASKS", "My active work"], assigned: ["ASSIGNED TASKS", "Ready to start"], in_progress: ["TASKS IN PROGRESS", "Work underway"], pending: ["PENDING TASKS", "Work on hold"], overdue: ["OVERDUE TASKS", "Needs attention"], completed: ["LAST 30 DAYS", "Completed work"]};
+    const heading = titles[state.workView] || titles.active;
+    const cards = jobs.length ? jobs.map(job => '<button class="tp-work-card" data-work-order="' + esc(job.name) + '"><div><span class="tp-badge priority-' + statusKey(job.priority) + '">' + esc(job.priority || "Not set") + '</span>' + (job.is_overdue ? '<span class="tp-badge danger">Overdue</span>' : '') + '</div><strong>' + esc(job.subject || job.name) + '</strong><span class="tp-status">' + esc(job.work_order_status) + '</span><p>' + esc(job.facility_location || "Location not set") + '<br>' + esc(job.asset || "No asset linked") + '</p><footer><span>SLA: ' + esc(job.sla_status || "Not applicable") + '</span><b>View ›</b></footer></button>').join("") : '<div class="tp-empty"><h3>No matching jobs</h3><p>Try another task range or filter.</p></div>';
+    return header(heading[0], heading[1]) + workFilters() + '<div class="tp-result-count">' + jobs.length + ' jobs found</div><div class="tp-card-list">' + cards + '</div>' + workModal();
+  }
+
+  function requestFilters() {
+    const data = state.requestData;
+    const optionList = (values, current, label) => '<option value="All">All ' + label.toLowerCase() + '</option>' + (values || []).map(value => '<option value="' + esc(value) + '"' + (current === value ? ' selected' : '') + '>' + esc(value) + '</option>').join("");
+    return '<section class="tp-filters tp-request-filters"><label>Priority<select data-request-filter="priority">' + optionList(data.priorities, state.priority, "priorities") + '</select></label><label>Location<select data-request-filter="location">' + optionList(data.locations, state.location, "locations") + '</select></label></section>';
+  }
+
+  function requestContent() {
+    if (state.requestForm) return header("FACILITY REQUEST", state.editingRequest ? "Update your request" : "Tell the facility team what you need") + requestForm();
+    const requests = (state.requestData.requests || []).filter(row => {
+      const status = statusKey(row.custom_issue_status || "New");
+      const matchesView = state.requestView === "all" ? !["resolved", "closed"].includes(status) : state.requestView === "resolved" ? ["resolved", "closed"].includes(status) : status === state.requestView;
+      return matchesView && (state.priority === "All" || row.priority === state.priority) && (state.location === "All" || row.custom_facility_location === state.location);
+    });
+    const cards = requests.length ? requests.map(row => '<button class="tp-request-card" data-request="' + esc(row.name) + '"><div><span class="tp-status">' + esc(row.custom_issue_status || "New") + '</span><em>' + esc(row.priority) + '</em><strong>' + esc(row.subject) + '</strong><small>' + esc(row.custom_facility_location) + ' · ' + esc(row.issue_type) + '</small></div><b>View ›</b></button>').join("") : '<div class="tp-empty"><h3>No matching requests</h3><p>Create a request when you need help from the facility team.</p></div>';
+    return header("MY REQUESTS", "Track your facility requests") + requestFilters() + '<div class="tp-result-count">' + requests.length + ' requests found</div><div class="tp-card-list">' + cards + '</div>' + requestModal();
+  }
+
+  function header(label, title) {
+    return '<header class="tp-main-header"><div><p>' + esc(label) + '</p><h1>' + esc(title) + '</h1></div><button class="tp-notifications" type="button" title="Notifications">' + icon("bell") + '</button><button class="tp-refresh" type="button">' + icon("refresh") + '<span>Refresh</span></button></header>';
+  }
+
+  function requestForm() {
+    const data = state.requestData, row = state.editingRequest || {};
+    const options = (values, current, label) => '<option value="" disabled' + (!current ? ' selected' : '') + '>Select ' + label + '</option>' + (values || []).map(value => '<option value="' + esc(value) + '"' + (current === value ? ' selected' : '') + '>' + esc(value) + '</option>').join("");
+    return '<section class="tp-form"><button class="tp-back" type="button">‹ Back to requests</button><form id="tp-request-form"><label>Subject<input name="subject" required value="' + esc(row.subject) + '" placeholder="Briefly describe the issue"></label><label>Facility location<select name="facility_location" required>' + options(data.locations, row.custom_facility_location, "location") + '</select></label><label>Category<select name="issue_type" required>' + options(data.categories, row.issue_type, "category") + '</select></label><label>Priority<select name="priority" required>' + options(data.priorities, row.priority, "priority") + '</select></label><label>Description<textarea name="description" required placeholder="Describe what happened and when it started.">' + esc(row.description) + '</textarea></label><button class="tp-primary" type="submit">' + (state.editingRequest ? "Save changes" : "Submit request") + '</button></form></section>';
+  }
+
+  function requestModal() {
+    const row = state.selectedRequest;
+    if (!row) return "";
+    const canChange = row.custom_issue_status === "New" && !row.custom_work_order;
+    return '<div class="tp-modal-backdrop"><section class="tp-modal"><button class="tp-modal-close" type="button">×</button><p>REQUEST ' + esc(row.name) + '</p><h2>' + esc(row.subject) + '</h2><div class="tp-detail-grid"><div><small>Status</small><strong>' + esc(row.custom_issue_status || "New") + '</strong></div><div><small>Priority</small><strong>' + esc(row.priority) + '</strong></div><div><small>Location</small><strong>' + esc(row.custom_facility_location) + '</strong></div><div><small>Category</small><strong>' + esc(row.issue_type) + '</strong></div></div><article><small>Description</small><p>' + esc(row.description).replace(/\n/g, "<br>") + '</p></article>' + (canChange ? '<footer><button class="tp-secondary tp-edit-request">Edit request</button><button class="tp-danger tp-withdraw-request">Withdraw request</button></footer>' : '<div class="tp-readonly">This request is already being handled and can no longer be changed here.</div>') + '</section></div>';
+  }
+
+  function workModal() {
+    const row = state.selectedWork;
+    if (!row) return "";
+    const status = row.status || row.work_order_status;
+    const checklist = (row.checklist || []).map(item => '<div class="tp-check-row"><span>' + esc(item.description) + (item.is_required ? ' *' : '') + '</span><select data-check-name="' + esc(item.name) + '" data-check-idx="' + esc(item.idx) + '">' + ["Pending", "Pass", "Fail", "N/A"].map(value => '<option' + (item.result === value ? ' selected' : '') + '>' + value + '</option>').join("") + '</select><input data-check-comment="' + esc(item.name) + '" value="' + esc(item.comments) + '" placeholder="Comments"></div>').join("");
+    const actions = status === "Assigned" ? '<button class="tp-primary" data-work-status="In Progress">Start work</button>' : status === "In Progress" ? '<button class="tp-secondary tp-pend-work">Put on hold</button><button class="tp-primary tp-complete-work">Complete work</button>' : status === "Pending" ? '<button class="tp-primary" data-work-status="In Progress">Resume work</button>' : '';
+    const completion = state.completing ? '<form id="tp-completion-form"><h3>Complete work</h3>' + (checklist ? '<div class="tp-checklist">' + checklist + '</div>' : '') + '<label>Resolution summary<textarea name="resolution_summary" required placeholder="Describe what was completed."></textarea></label><label>Technician notes<textarea name="technician_notes" placeholder="Add any follow-up notes.">' + esc(row.technician_notes) + '</textarea></label><div><button class="tp-secondary tp-cancel-completion" type="button">Cancel</button><button class="tp-primary" type="submit">Submit completion</button></div></form>' : '';
+    return '<div class="tp-modal-backdrop"><section class="tp-modal tp-work-modal"><button class="tp-modal-close" type="button">×</button><p>WORK ORDER ' + esc(row.name) + '</p><h2>' + esc(row.subject || row.name) + '</h2><div class="tp-detail-grid"><div><small>Status</small><strong>' + esc(status) + '</strong></div><div><small>Priority</small><strong>' + esc(row.priority) + '</strong></div><div><small>Location</small><strong>' + esc(row.facility_location) + '</strong></div><div><small>Asset</small><strong>' + esc(row.asset || "Not linked") + '</strong></div></div><article><small>Work description</small><p>' + esc(row.work_description || "No description provided.").replace(/\n/g, "<br>") + '</p></article>' + completion + (!state.completing && actions ? '<footer>' + actions + '</footer>' : '') + '</section></div>';
+  }
+
+  function render() {
+    root.innerHTML = '<div class="tp-shell' + (state.collapsed ? ' is-collapsed' : '') + '">' + sidebar() + '<main class="tp-main">' + (state.area === "work" ? workContent() : requestContent()) + '</main></div>';
+    bind();
+  }
+
+  function bind() {
+    root.querySelectorAll("[data-section]").forEach(button => button.onclick = () => {
+      const parts = button.dataset.section.split("-");
+      state.area = parts.shift();
+      if (state.area === "work") state.workView = parts.join("-");
+      else state.requestView = parts.join("-");
+      state.selectedWork = null; state.selectedRequest = null; state.requestForm = false;
+      loadCurrent();
+    });
+    const shell = root.querySelector(".tp-shell");
+    const collapseButton = root.querySelector(".tp-collapse");
+    const accountWrap = root.querySelector(".tp-account-wrap");
+    const accountButton = root.querySelector(".tp-account-button");
+    const accountMenu = root.querySelector(".tp-account-menu");
+    let accountOpenedFromCollapsed = false;
+
+    const setSidebarCollapsed = collapsed => {
+      state.collapsed = collapsed;
+      shell.classList.toggle("is-collapsed", collapsed);
+      collapseButton.querySelector(".tp-collapse-icon").innerHTML = icon(collapsed ? "right" : "left");
+      collapseButton.querySelector("em").textContent = collapsed ? "Expand" : "Collapse";
+      collapseButton.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
+      localStorage.setItem("cafm-technician-portal-collapsed", collapsed ? "1" : "0");
+    };
+    const openAccountMenu = () => {
+      accountMenu.hidden = false;
+      accountMenu.classList.add("is-opening");
+      requestAnimationFrame(() => requestAnimationFrame(() => accountMenu.classList.remove("is-opening")));
+    };
+    const closeAccountMenu = () => {
+      if (accountMenu.hidden) return;
+      accountMenu.hidden = true;
+      accountButton.setAttribute("aria-expanded", "false");
+      if (accountOpenedFromCollapsed) {
+        accountOpenedFromCollapsed = false;
+        setSidebarCollapsed(true);
+      }
+    };
+
+    accountButton.onclick = () => {
+      if (shell.classList.contains("is-collapsed")) {
+        accountOpenedFromCollapsed = true;
+        setSidebarCollapsed(false);
+        openAccountMenu();
+        accountButton.setAttribute("aria-expanded", "true");
+        return;
+      }
+      if (accountMenu.hidden) {
+        openAccountMenu();
+        accountButton.setAttribute("aria-expanded", "true");
+      } else closeAccountMenu();
+    };
+    root.onclick = event => { if (!accountWrap.contains(event.target)) closeAccountMenu(); };
+    root.querySelector(".tp-account-about").onclick = () => {
+      closeAccountMenu();
+      frappe.msgprint({
+        title: "Technician Portal",
+        message: "Manage your assigned facility work and track requests submitted by your account.",
+        indicator: "blue"
+      });
+    };
+    root.querySelector(".tp-account-logout").onclick = () => frappe.call({
+      method: "logout",
+      callback: response => { if (!response.exc) window.location.assign("/login"); }
+    });
+    collapseButton.onclick = () => {
+      accountOpenedFromCollapsed = false;
+      closeAccountMenu();
+      setSidebarCollapsed(!shell.classList.contains("is-collapsed"));
+    };
+    root.querySelector(".tp-create-request").onclick = async () => { state.area = "request"; state.requestForm = true; state.editingRequest = null; await loadRequests(); };
+    root.querySelector(".tp-refresh").onclick = loadCurrent;
+    root.querySelector(".tp-notifications").onclick = showNotifications;
+    root.querySelectorAll("[data-work-filter]").forEach(control => control.onchange = () => { const key = control.dataset.workFilter; if (key === "view") state.workView = control.value; else state[key] = control.value; loadWork(); });
+    root.querySelectorAll("[data-request-filter]").forEach(control => control.onchange = () => { state[control.dataset.requestFilter] = control.value; render(); });
+    root.querySelectorAll("[data-work-order]").forEach(button => button.onclick = () => openWork(button.dataset.workOrder));
+    root.querySelectorAll("[data-request]").forEach(button => button.onclick = () => { state.selectedRequest = (state.requestData.requests || []).find(row => row.name === button.dataset.request); render(); });
+    const close = root.querySelector(".tp-modal-close"); if (close) close.onclick = () => { state.selectedWork = null; state.selectedRequest = null; state.completing = false; render(); };
+    const back = root.querySelector(".tp-back"); if (back) back.onclick = () => { state.requestForm = false; state.editingRequest = null; render(); };
+    const edit = root.querySelector(".tp-edit-request"); if (edit) edit.onclick = () => { state.editingRequest = state.selectedRequest; state.selectedRequest = null; state.requestForm = true; render(); };
+    const withdraw = root.querySelector(".tp-withdraw-request"); if (withdraw) withdraw.onclick = withdrawRequest;
+    const requestFormElement = root.querySelector("#tp-request-form"); if (requestFormElement) requestFormElement.onsubmit = submitRequest;
+    root.querySelectorAll("[data-work-status]").forEach(button => button.onclick = () => changeWorkStatus(button.dataset.workStatus));
+    const pending = root.querySelector(".tp-pend-work"); if (pending) pending.onclick = () => { const reason = window.prompt("Why is this work being put on hold?"); if (reason) changeWorkStatus("Pending", reason); };
+    const complete = root.querySelector(".tp-complete-work"); if (complete) complete.onclick = () => { state.completing = true; render(); };
+    const cancelCompletion = root.querySelector(".tp-cancel-completion"); if (cancelCompletion) cancelCompletion.onclick = () => { state.completing = false; render(); };
+    const completionForm = root.querySelector("#tp-completion-form"); if (completionForm) completionForm.onsubmit = submitCompletion;
+  }
+
+  async function loadWork() {
+    state.area = "work";
+    const data = await call("cafm.mobile.get_my_work_orders", {view: state.workView, priority: state.priority, facility_location: state.location});
+    state.workData = data;
+    state.userName = data.user_full_name || state.userName;
+    render();
+  }
+  async function loadRequests() { state.area = "request"; state.requestData = await call("cafm.portal.get_portal_requests"); render(); }
+  function loadCurrent() { return state.area === "work" ? loadWork() : loadRequests(); }
+  async function openWork(name) { state.selectedWork = await call("cafm.mobile.get_my_work_order", {work_order_name: name}); state.completing = false; render(); }
+  async function changeWorkStatus(status, pendingReason) { await call("cafm.api.update_work_order_status", {work_order_name: state.selectedWork.name, status, pending_reason: pendingReason}); state.selectedWork = null; frappe.show_alert({message: "Work order updated", indicator: "green"}); await loadWork(); }
+  async function submitCompletion(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const checklist = [...form.querySelectorAll("[data-check-name]")].map(control => ({name: control.dataset.checkName, idx: control.dataset.checkIdx, result: control.value, comments: form.querySelector('[data-check-comment="' + CSS.escape(control.dataset.checkName) + '"]').value}));
+    await call("cafm.api.submit_technician_resolution", {work_order_name: state.selectedWork.name, resolution_summary: form.resolution_summary.value, technician_notes: form.technician_notes.value, checklist: JSON.stringify(checklist)});
+    state.selectedWork = null; state.completing = false; frappe.show_alert({message: "Work completed", indicator: "green"}); await loadWork();
+  }
+  async function submitRequest(event) {
+    event.preventDefault(); const form = event.currentTarget; const args = Object.fromEntries(new FormData(form).entries());
+    const editing = state.editingRequest; if (editing) args.name = editing.name;
+    const result = await call(editing ? "cafm.portal.update_portal_request" : "cafm.portal.submit_portal_request", args);
+    frappe.show_alert({message: editing ? "Request updated" : "Request " + result.name + " submitted", indicator: "green"}); state.requestForm = false; state.editingRequest = null; state.requestView = "all"; await loadRequests();
+  }
+  function withdrawRequest() { frappe.confirm("Withdraw this request?", async () => { await call("cafm.portal.withdraw_portal_request", {name: state.selectedRequest.name}); state.selectedRequest = null; frappe.show_alert({message: "Request withdrawn", indicator: "green"}); await loadRequests(); }); }
+  async function showNotifications() {
+    const data = await call("cafm.mobile.get_my_mobile_notifications");
+    const rows = (data.notifications || []).map(item => '<div class="tp-notification-row"><strong>' + esc(String(item.subject || "Notification").replace(/<[^>]*>/g, "")) + '</strong><small>' + esc(item.creation) + '</small></div>').join("") || '<p>No notifications yet.</p>';
+    frappe.msgprint({title: "Notifications", message: rows});
+    const unread = (data.notifications || []).filter(item => !item.read).map(item => item.name); if (unread.length) call("cafm.mobile.mark_mobile_notifications_read", {names: unread});
+  }
+
+  loadWork().catch(() => { root.innerHTML = '<div class="tp-error"><h2>Could not load the Technician Portal</h2><p>Please confirm that this account is an active technician.</p></div>'; });
+});
+</script>
+<style>
+body:has(#page-technician-portal){margin:0!important;padding:0!important;background:#f4f8fb;overflow-x:hidden}
+body:has(#page-technician-portal) .navbar,body:has(#page-technician-portal) .web-footer,body:has(#page-technician-portal) .page-breadcrumbs,body:has(#page-technician-portal) .page-footer{display:none!important}
+body:has(#page-technician-portal) #page-technician-portal,body:has(#page-technician-portal) .page-container,body:has(#page-technician-portal) .page-content-wrapper,body:has(#page-technician-portal) .page_content,body:has(#page-technician-portal) main.container{width:100%!important;max-width:none!important;min-height:100vh;margin:0!important;padding:0!important}
+#cafm-technician-portal{min-height:100vh;background:#f4f8fb;color:#19324b}
+#cafm-technician-portal *{box-sizing:border-box}
+.tp-shell{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100vh;transition:grid-template-columns .2s ease}
+.tp-sidebar{position:fixed;inset:0 auto 0 0;z-index:30;display:flex;flex-direction:column;width:270px;height:100vh;overflow-y:auto;padding:22px 14px;background:linear-gradient(165deg,#103e6a,#0b3156);color:#fff;transition:width .2s ease,padding .2s ease}
+.tp-profile{display:flex;align-items:center;gap:11px;padding:4px 7px 22px}.tp-profile>span{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:50%;background:#42a5dd;color:#fff;font-size:13px;font-weight:800}.tp-profile p{margin:0 0 3px;color:#a9d5f0;font-size:9px;font-weight:800;letter-spacing:.5px}.tp-profile h2{margin:0;color:#fff;font-size:15px;white-space:nowrap}
+.tp-nav-group{display:grid;gap:4px;margin-bottom:14px}.tp-nav-group>small{padding:7px 10px 4px;color:#8fc4e5;font-size:9px;font-weight:900;letter-spacing:.7px}.tp-nav-item{display:flex;align-items:center;gap:9px;width:100%;min-height:40px;padding:9px 10px;border:0;border-radius:9px;background:transparent;color:#edf7ff;text-align:left;cursor:pointer;transition:background .16s ease,transform .16s ease}.tp-nav-item:hover{background:#184f7e;transform:translateX(2px)}.tp-nav-item.active{background:#1d659c}.tp-nav-item em{flex:1;font-size:12px;font-style:normal;font-weight:700}.tp-nav-item b{color:#b8ddf3;font-size:10px}.tp-nav-icon{display:grid;place-items:center;flex:0 0 21px;width:21px;height:21px;color:#d8efff;font-size:17px}
+.tp-create-request{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 14px);min-height:41px;margin:2px 7px 0;border:1px solid #53a7d7;border-radius:10px;background:#fff;color:#174f80;font-size:12px;font-weight:800;cursor:pointer}.tp-create-request:hover{background:#eaf5fc}.tp-create-request span{font-size:19px}.tp-create-request em{font-style:normal}.tp-note{margin:17px 8px;color:#a9d5f0;font-size:10px;line-height:1.5}.tp-collapse{display:flex;align-items:center;gap:9px;width:calc(100% - 14px);min-height:40px;margin:auto 7px 0;padding:9px 12px;border:0;border-radius:9px;background:transparent;color:#cfe9fa;cursor:pointer}.tp-collapse:hover{background:#1c6097;color:#fff}.tp-collapse span{font-size:24px;line-height:1}.tp-collapse em{font-size:12px;font-style:normal}
+.tp-main{grid-column:2;min-width:0;padding:34px;background:#f4f8fb}.tp-main-header{display:flex;align-items:center;gap:11px;margin-bottom:24px}.tp-main-header>div{flex:1}.tp-main-header p{margin:0;color:#487391;font-size:10px;font-weight:900;letter-spacing:.8px}.tp-main-header h1{margin:5px 0 0;color:#173650;font-size:29px}.tp-refresh,.tp-notifications{min-height:43px;border:1px solid #8eb9d7;border-radius:10px;background:#fff;color:#175d90;font-weight:800;cursor:pointer}.tp-refresh{padding:9px 15px}.tp-notifications{width:43px;font-size:18px}.tp-refresh:hover,.tp-notifications:hover{background:#eaf5fc;border-color:#397eae}
+.tp-filters{display:grid;grid-template-columns:220px 160px minmax(180px,1fr);gap:12px;padding:15px;border:1px solid #dce7ef;border-radius:13px;background:#fff}.tp-request-filters{grid-template-columns:180px minmax(220px,1fr)}.tp-filters label,.tp-form label,#tp-completion-form label{display:grid;gap:5px;color:#3f627f;font-size:11px;font-weight:800}.tp-filters select,.tp-form input,.tp-form select,.tp-form textarea,#tp-completion-form input,#tp-completion-form select,#tp-completion-form textarea{width:100%;min-height:40px;padding:8px 10px;border:1px solid #cbdce7;border-radius:8px;background:#fff;color:#294b64;outline:none}.tp-filters select:focus,.tp-form input:focus,.tp-form select:focus,.tp-form textarea:focus,#tp-completion-form textarea:focus{border-color:#4d96c3;box-shadow:0 0 0 3px rgba(55,135,187,.12)}
+.tp-result-count{margin:18px 3px 9px;color:#56748a;font-size:11px;font-weight:700}.tp-card-list{display:grid;gap:10px}.tp-work-card,.tp-request-card{position:relative;width:100%;padding:15px;border:1px solid #dce6ee;border-radius:13px;background:#fff;color:#294b64;text-align:left;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}.tp-work-card:hover,.tp-request-card:hover{border-color:#7db4d8;box-shadow:0 6px 15px rgba(22,73,111,.08);transform:translateY(-1px)}.tp-work-card>strong{display:block;margin:10px 95px 6px 0;color:#193a56;font-size:16px}.tp-work-card>p{margin:0 0 11px;color:#587187;font-size:12px;line-height:1.55}.tp-work-card>footer{display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #e7eef3;color:#486a84;font-size:11px}.tp-work-card>footer b{color:#1767a0}.tp-status{padding:4px 8px;border-radius:99px;background:#edf3f7;color:#3f5d75;font-size:10px;font-weight:800}.tp-work-card>.tp-status{position:absolute;top:15px;right:15px}.tp-badge{display:inline-block;margin-right:6px;padding:4px 8px;border-radius:99px;background:#e5f1ff;color:#135f9b;font-size:10px;font-weight:800}.tp-badge.priority-critical,.tp-badge.danger{background:#ffe5e5;color:#ba1f1f}.tp-badge.priority-high{background:#fff2de;color:#a85300}.tp-badge.priority-low{background:#e6f8ee;color:#1d7442}
+.tp-request-card{display:flex;align-items:center;justify-content:space-between;gap:14px}.tp-request-card>div{min-width:0}.tp-request-card em{margin-left:7px;color:#a85d09;font-size:10px;font-style:normal}.tp-request-card strong,.tp-request-card small{display:block}.tp-request-card strong{margin:9px 0 4px;color:#193a56;font-size:15px}.tp-request-card small{color:#627e92;font-size:11px}.tp-request-card>b{color:#1767a0;font-size:12px;white-space:nowrap}.tp-empty,.tp-loading,.tp-error{padding:38px;border:1px solid #dce6ee;border-radius:13px;background:#fff;color:#587187;text-align:center}.tp-empty h3,.tp-error h2{margin-top:0;color:#263f53}
+.tp-form{max-width:760px;padding:22px;border:1px solid #dce7ef;border-radius:13px;background:#fff}.tp-back{margin:0 0 17px;padding:0;border:0;background:transparent;color:#1767a0;cursor:pointer}.tp-form form{display:grid;gap:14px}.tp-form textarea,#tp-completion-form textarea{min-height:105px;resize:vertical}.tp-primary,.tp-secondary,.tp-danger{min-height:39px;padding:9px 14px;border-radius:9px;font-size:11px;font-weight:800;cursor:pointer}.tp-primary{border:1px solid #14639d;background:#14639d;color:#fff}.tp-primary:hover{background:#0e527f}.tp-secondary{border:1px solid #bcd2df;background:#fff;color:#365f79}.tp-danger{border:1px solid #c93838;background:#c93838;color:#fff}
+.tp-modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(12,35,52,.48);backdrop-filter:blur(2px)}.tp-modal{position:relative;width:min(670px,96vw);max-height:88vh;overflow:auto;padding:27px;border-radius:16px;background:#f8fbfd;box-shadow:0 18px 48px rgba(10,39,61,.3)}.tp-modal-close{position:absolute;top:13px;right:15px;width:34px;height:34px;border:1px solid #cbdde8;border-radius:9px;background:#fff;color:#315b76;font-size:22px;cursor:pointer}.tp-modal>p{margin:0;color:#397594;font-size:10px;font-weight:900;letter-spacing:.7px}.tp-modal>h2{margin:6px 42px 20px 0;color:#173650;font-size:22px}.tp-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tp-detail-grid>div,.tp-modal>article{padding:12px;border:1px solid #dbe7ef;border-radius:10px;background:#fff}.tp-detail-grid small,.tp-modal article>small{display:block;margin-bottom:5px;color:#66839a;font-size:9px;font-weight:900;text-transform:uppercase}.tp-detail-grid strong{color:#294b64;font-size:12px}.tp-modal>article{margin-top:11px}.tp-modal article p{margin:0;color:#49647a;font-size:12px;line-height:1.55}.tp-modal>footer{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.tp-readonly{margin-top:16px;padding:11px;border-radius:8px;background:#eaf2f7;color:#56748a;font-size:11px}
+#tp-completion-form{display:grid;gap:13px;margin-top:16px;padding:16px;border:1px solid #b9d5e5;border-radius:11px;background:#eaf5fb}#tp-completion-form h3{margin:0;color:#225d83;font-size:16px}#tp-completion-form>div:last-child{display:flex;justify-content:flex-end;gap:8px}.tp-checklist{display:grid;gap:7px}.tp-check-row{display:grid;grid-template-columns:minmax(150px,1fr) 105px minmax(130px,1fr);gap:7px;align-items:center}.tp-check-row>span{color:#365f79;font-size:11px}.tp-notification-row{display:grid;gap:4px;padding:9px 0;border-bottom:1px solid #e5edf3}.tp-notification-row small{color:#71849a}
+.tp-shell.is-collapsed{grid-template-columns:78px minmax(0,1fr)}.tp-shell.is-collapsed .tp-sidebar{width:78px;padding:22px 11px}.tp-shell.is-collapsed .tp-profile{justify-content:center;padding:4px 0 20px}.tp-shell.is-collapsed .tp-profile>div,.tp-shell.is-collapsed .tp-nav-group>small,.tp-shell.is-collapsed .tp-nav-item em,.tp-shell.is-collapsed .tp-nav-item b,.tp-shell.is-collapsed .tp-create-request em,.tp-shell.is-collapsed .tp-note,.tp-shell.is-collapsed .tp-collapse em{display:none}.tp-shell.is-collapsed .tp-nav-item{justify-content:center;padding:9px}.tp-shell.is-collapsed .tp-create-request{width:44px;height:44px;margin:4px auto 0;padding:0}.tp-shell.is-collapsed .tp-collapse{justify-content:center;width:44px;margin:auto}.tp-shell.is-collapsed .tp-main{grid-column:2}
+@media(max-width:760px){.tp-shell,.tp-shell.is-collapsed{display:block}.tp-sidebar,.tp-shell.is-collapsed .tp-sidebar{position:static;width:100%;height:auto;max-height:none;padding:18px 14px}.tp-shell.is-collapsed .tp-profile>div,.tp-shell.is-collapsed .tp-nav-group>small,.tp-shell.is-collapsed .tp-nav-item em,.tp-shell.is-collapsed .tp-nav-item b,.tp-shell.is-collapsed .tp-create-request em,.tp-shell.is-collapsed .tp-note,.tp-shell.is-collapsed .tp-collapse em{display:block}.tp-shell.is-collapsed .tp-nav-item{justify-content:flex-start}.tp-shell.is-collapsed .tp-create-request{width:calc(100% - 14px);height:auto;margin:4px 7px}.tp-shell.is-collapsed .tp-collapse{width:calc(100% - 14px);margin:12px 7px 0}.tp-main{padding:22px 16px}.tp-filters,.tp-request-filters{grid-template-columns:1fr}.tp-main-header h1{font-size:24px}.tp-refresh span{display:none}.tp-detail-grid,.tp-check-row{grid-template-columns:1fr}}
+
+/* Shared CAFM app-view language */
+#cafm-technician-portal{font-family:Inter,var(--font-stack),-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.tp-icon{display:block;width:19px;height:19px;flex:0 0 19px}
+.tp-shell{grid-template-columns:255px minmax(0,1fr);transition:grid-template-columns .2s ease}
+.tp-sidebar{width:255px;padding:22px 14px;transition:width .2s ease,padding .2s ease}
+.tp-brand{display:flex;align-items:center;gap:10px;margin:0 7px 25px;min-height:35px}
+.tp-brand>span{display:grid;place-items:center;flex:0 0 35px;width:35px;height:35px;border-radius:10px;background:#49aee2;color:#fff}
+.tp-brand>span .tp-icon{width:22px;height:22px}
+.tp-brand strong,.tp-brand small{display:block}.tp-brand strong{color:#fff;font-size:17px;font-weight:800;letter-spacing:.8px;line-height:1.15}.tp-brand small{margin-top:3px;color:#a9d5f0;font-size:8px;font-weight:800;letter-spacing:1.15px}
+.tp-profile{gap:10px;margin:0 7px 20px;padding:11px;border-radius:12px;background:rgba(255,255,255,.08);transition:padding .2s ease,margin .2s ease}
+.tp-profile>span{flex:0 0 35px;width:35px;height:35px;font-size:12px}.tp-profile p{font-size:9px;letter-spacing:.35px}.tp-profile h2{overflow:hidden;max-width:155px;font-size:13px;text-overflow:ellipsis}
+.tp-nav-group{gap:4px;margin:3px 0 10px}.tp-nav-group>small{padding:7px 11px 3px;color:#8fc4e5;font-size:8px;letter-spacing:.8px}
+.tp-nav-item{justify-content:space-between;gap:8px;min-height:39px;padding:10px 11px;border-radius:9px;color:#eaf6ff;transition:background .16s ease,color .16s ease}
+.tp-nav-item:hover{background:rgba(41,111,161,.45);transform:none}.tp-nav-item.active{background:#1c6097}.tp-nav-item em{font-size:13px}.tp-nav-item b{min-width:20px;padding:2px 6px;border-radius:99px;background:rgba(255,255,255,.09);color:#b9dff5;font-size:9px;text-align:center}
+.tp-nav-icon{display:none;width:19px;height:19px;flex:0 0 19px}.tp-nav-icon .tp-icon{width:19px;height:19px}
+.tp-create-request{gap:8px;width:calc(100% - 14px);min-height:42px;margin:10px 7px 0;border:1px solid #4b94bf;border-radius:9px;background:transparent;color:#fff;font-size:12px;transition:background .16s ease,color .16s ease,border-color .16s ease,transform .16s ease}
+.tp-create-request:hover{background:#fff;color:#134a78;transform:translateY(-1px)}.tp-create-request span{display:flex}.tp-create-request .tp-icon{width:17px;height:17px}
+.tp-note{margin:14px 8px;color:#a9d5f0;font-size:10px;line-height:1.5}
+.tp-collapse{gap:8px;width:calc(100% - 14px);min-height:40px;margin:auto 7px 0;padding:9px 10px;border-radius:9px;font-size:12px;transition:background .16s ease,color .16s ease}
+.tp-collapse-icon{display:flex;width:19px;height:19px}.tp-collapse-icon .tp-icon{width:19px;height:19px}.tp-collapse em{font-size:12px}
+.tp-main{padding:34px;transition:padding .2s ease}.tp-main>*{animation:tp-content-in .2s ease both}@keyframes tp-content-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.tp-main-header{align-items:flex-start;gap:10px;margin-bottom:28px}.tp-main-header p{font-size:10px;font-weight:800;letter-spacing:.8px}.tp-main-header h1{margin:6px 0 0;font-size:30px;line-height:1.15}
+.tp-refresh,.tp-notifications{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:11px;box-shadow:0 3px 8px rgba(20,88,137,.12);font-size:14px;transition:background .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease}.tp-refresh{padding:11px 18px}.tp-notifications{width:46px}.tp-refresh:hover,.tp-notifications:hover{box-shadow:0 5px 13px rgba(20,88,137,.2);transform:translateY(-1px)}
+.tp-filters{gap:12px;padding:16px;border-radius:14px;box-shadow:0 3px 8px rgba(20,58,87,.025)}.tp-filters label,.tp-form label,#tp-completion-form label{gap:6px;font-size:11px}.tp-filters select,.tp-form input,.tp-form select,.tp-form textarea,#tp-completion-form input,#tp-completion-form select,#tp-completion-form textarea{min-height:41px;padding:9px 11px;border-color:#c9dce7;border-radius:9px;font-size:12px;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease}.tp-filters select:hover,.tp-form select:hover{border-color:#8eb9d7;background:#fbfdff}
+.tp-result-count{margin:18px 3px 9px;font-size:11px}.tp-card-list{gap:10px}.tp-work-card,.tp-request-card{padding:15px;border-radius:14px;box-shadow:0 3px 8px rgba(20,58,87,.03);transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}.tp-work-card:hover,.tp-request-card:hover{box-shadow:0 9px 18px rgba(20,58,87,.09);transform:translateY(-2px)}.tp-work-card>strong{font-size:14px}.tp-request-card strong{font-size:14px}.tp-status,.tp-badge{font-size:10px}
+.tp-form{max-width:820px;padding:22px;border-radius:15px;box-shadow:0 5px 16px rgba(20,58,87,.04)}.tp-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700}.tp-back .tp-icon{width:16px;height:16px}.tp-primary,.tp-secondary,.tp-danger{min-height:41px;padding:9px 15px;border-radius:9px;font-size:12px;transition:background .16s ease,border-color .16s ease,box-shadow .16s ease,transform .16s ease}.tp-primary:hover,.tp-secondary:hover,.tp-danger:hover{transform:translateY(-1px)}.tp-secondary:hover{background:#edf6fb;border-color:#8eb9d7}.tp-danger:hover{background:#ad2d2d}
+.tp-modal-backdrop{animation:tp-backdrop-in .16s ease both}.tp-modal{border:1px solid #d7e4ec;border-radius:16px;animation:tp-modal-in .2s ease both}@keyframes tp-backdrop-in{from{opacity:0}to{opacity:1}}@keyframes tp-modal-in{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}.tp-modal-close{transition:background .15s ease,border-color .15s ease,transform .15s ease}.tp-modal-close:hover{border-color:#8eb9d7;background:#eaf5fc;transform:rotate(3deg)}
+.tp-shell.is-collapsed{grid-template-columns:78px minmax(0,1fr)}.tp-shell.is-collapsed .tp-sidebar{width:78px;padding:22px 11px}.tp-shell.is-collapsed .tp-brand{justify-content:center;margin:0 0 28px}.tp-shell.is-collapsed .tp-brand>div,.tp-shell.is-collapsed .tp-profile>div,.tp-shell.is-collapsed .tp-nav-group>small,.tp-shell.is-collapsed .tp-nav-item em,.tp-shell.is-collapsed .tp-nav-item b,.tp-shell.is-collapsed .tp-create-request em,.tp-shell.is-collapsed .tp-note,.tp-shell.is-collapsed .tp-collapse em{display:none}.tp-shell.is-collapsed .tp-profile{justify-content:center;margin:0 0 18px;padding:8px}.tp-shell.is-collapsed .tp-nav-item{justify-content:center;padding:11px}.tp-shell.is-collapsed .tp-nav-icon{display:flex}.tp-shell.is-collapsed .tp-create-request{width:44px;height:44px;margin:10px auto 0;padding:0;border-radius:11px}.tp-shell.is-collapsed .tp-create-request span{margin:auto}.tp-shell.is-collapsed .tp-collapse{justify-content:center;width:44px;margin:auto auto 0;padding:10px}
+@media(max-width:760px){.tp-shell,.tp-shell.is-collapsed{display:block}.tp-sidebar,.tp-shell.is-collapsed .tp-sidebar{position:static;width:100%;height:auto;max-height:none;padding:18px 14px}.tp-brand,.tp-shell.is-collapsed .tp-brand{justify-content:flex-start;margin:0 7px 20px}.tp-shell.is-collapsed .tp-brand>div,.tp-shell.is-collapsed .tp-profile>div,.tp-shell.is-collapsed .tp-nav-group>small,.tp-shell.is-collapsed .tp-nav-item em,.tp-shell.is-collapsed .tp-nav-item b,.tp-shell.is-collapsed .tp-create-request em,.tp-shell.is-collapsed .tp-note,.tp-shell.is-collapsed .tp-collapse em{display:block}.tp-shell.is-collapsed .tp-profile{justify-content:flex-start;margin:0 7px 18px;padding:11px}.tp-nav-icon,.tp-shell.is-collapsed .tp-nav-icon{display:flex}.tp-shell.is-collapsed .tp-nav-item{justify-content:flex-start}.tp-shell.is-collapsed .tp-create-request{width:calc(100% - 14px);height:auto;margin:10px 7px}.tp-shell.is-collapsed .tp-collapse{width:calc(100% - 14px);margin:12px 7px 0}.tp-main{padding:22px 16px}.tp-main-header h1{font-size:25px}.tp-refresh{width:46px;padding:10px}.tp-refresh span{display:none}}
+
+/* Compact account-enabled sidebar */
+.tp-shell{grid-template-columns:270px minmax(0,1fr)}.tp-sidebar{width:270px;overflow-y:hidden;padding:18px 14px 14px}.tp-brand{margin:0 7px 16px}.tp-account-wrap{position:relative;margin:0 7px 12px}.tp-account-button{width:100%;margin:0;border:0;color:#fff;text-align:left;cursor:pointer}.tp-account-button>b{display:flex;margin-left:auto;color:#b3d9ef}.tp-account-button>b .tp-icon{width:16px;height:16px;transition:transform .16s ease}.tp-account-button[aria-expanded="true"]>b .tp-icon{transform:rotate(180deg)}
+.tp-profile{min-height:53px;margin:0;padding:9px 10px}.tp-profile h2{max-width:160px}.tp-account-menu{position:absolute;top:calc(100% + 7px);left:0;z-index:60;display:grid;width:100%;padding:7px;border:1px solid rgba(181,217,239,.22);border-radius:12px;background:#173d5b;box-shadow:0 13px 28px rgba(0,0,0,.27);opacity:1;transform:translateY(0);visibility:visible;pointer-events:auto;transition:opacity .16s ease,transform .16s ease,visibility .16s ease}.tp-account-menu[hidden]{display:grid;opacity:0;transform:translateY(-6px);visibility:hidden;pointer-events:none}.tp-account-menu.is-opening{opacity:0;transform:translateY(-8px);visibility:visible}.tp-account-menu button{display:flex;align-items:center;gap:9px;width:100%;padding:8px 9px;border:0;border-radius:7px;background:transparent;color:#eff8ff;text-align:left;font-size:12px;cursor:pointer}.tp-account-menu button:hover{background:#245979}.tp-account-menu .tp-icon{width:16px;height:16px;color:#9ccae5}.tp-account-menu .tp-account-logout{color:#ffd0d3}.tp-account-menu .tp-account-logout:hover{background:#5c2430}
+.tp-nav-group{gap:2px;margin:1px 0 6px}.tp-nav-group>small{padding:5px 11px 2px;font-size:8px}.tp-nav-item{min-height:34px;padding:7px 11px}.tp-nav-item em{font-size:12px}.tp-create-request{min-height:38px;margin-top:6px}.tp-note{margin:9px 8px 6px;font-size:9px;line-height:1.4}.tp-collapse{min-height:36px;padding:7px 10px}
+.tp-shell.is-collapsed{grid-template-columns:78px minmax(0,1fr)}.tp-shell.is-collapsed .tp-sidebar{width:78px;padding:18px 11px 14px}.tp-shell.is-collapsed .tp-brand{margin-bottom:20px}.tp-shell.is-collapsed .tp-account-wrap{margin:0 0 12px}.tp-shell.is-collapsed .tp-profile{margin:0;padding:8px}.tp-shell.is-collapsed .tp-account-button>b{display:none}.tp-shell.is-collapsed .tp-account-menu{top:0;left:56px;width:190px}
+@media(max-width:760px){.tp-sidebar,.tp-shell.is-collapsed .tp-sidebar{width:100%;overflow:visible;padding:16px 14px}.tp-account-wrap,.tp-shell.is-collapsed .tp-account-wrap{margin:0 7px 12px}.tp-profile,.tp-shell.is-collapsed .tp-profile{margin:0;padding:9px 10px}.tp-shell.is-collapsed .tp-account-button>b{display:flex}.tp-account-menu,.tp-shell.is-collapsed .tp-account-menu{top:calc(100% + 7px);left:0;width:100%}}
+</style>
+{% endblock %}
