@@ -1,0 +1,181 @@
+.cafm-sign-up-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-top: 12px;
+    color: #030213;
+    background: #ffffff;
+    border: 1px solid #d8dae0;
+    text-decoration: none;
+}
+
+.cafm-sign-up-link:hover,
+.cafm-sign-up-link:focus {
+    color: #030213;
+    background: #f4f6fb;
+    border-color: #c2c6d0;
+    text-decoration: none;
+}
+
+body:has(.cafm-sign-up-page) .navbar,
+body:has(.cafm-sign-up-page) .page-head,
+body:has(.cafm-sign-up-page) .web-footer,
+body:has(.cafm-sign-up-page) .page-footer,
+body:has(.cafm-sign-up-page) .page-breadcrumbs {
+    display: none !important;
+}
+
+body:has(.cafm-sign-up-page),
+body:has(.cafm-sign-up-page) .page-content-wrapper,
+body:has(.cafm-sign-up-page) .page-container,
+body:has(.cafm-sign-up-page) .page_content,
+body:has(.cafm-sign-up-page) main.container {
+    width: 100% !important;
+    max-width: none !important;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #f8f9fa;
+}
+
+.cafm-sign-up-page {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    background: #f8f9fa;
+}
+
+.cafm-sign-up-page section.for-login {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    padding: 16px 24px;
+    overflow: hidden;
+}
+
+
+.cafm-sign-up-page section.for-login .page-card-head {
+    margin-bottom: 24px;
+}
+
+.cafm-sign-up-page section.for-login .page-card-head img.app-logo {
+    object-fit: contain;
+}
+
+.cafm-sign-up-page .password-field {
+    position: relative;
+    width: 100%;
+}
+
+.cafm-sign-up-page .password-field .form-control {
+    padding-right: 52px;
+}
+
+.cafm-sign-up-page .form-group {
+    margin-bottom: 14px;
+}
+
+.cafm-sign-up-page .name-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.cafm-sign-up-page .form-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 6px;
+    color: #4b5563;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.cafm-sign-up-page .label-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: #6b7280;
+}
+
+
+.cafm-sign-up-page .toggle-password-row {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: 6px;
+}
+
+.cafm-sign-up-page .toggle-password-row .toggle-password {
+    position: static !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    min-width: 52px;
+    padding: 5px 12px;
+    border: 1px solid #d8dae0;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.cafm-sign-up-page .toggle-password-row .toggle-password:hover,
+.cafm-sign-up-page .toggle-password-row .toggle-password:focus {
+    color: #030213;
+    background: #f4f6fb;
+    border-color: #c2c6d0;
+}
+
+.cafm-sign-up-page .form-control {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+
+
+.cafm-sign-up-page .login-divider {
+    margin: 13px 0 0;
+}
+
+#cafm-sign-up-error {
+    margin: 14px 0 0;
+    color: #b42318;
+    font-size: 0.875rem;
+}
+
+.cafm-sign-up-card.invalid-login {
+    animation: cafm-invalid-login 0.45s ease;
+}
+
+@keyframes cafm-invalid-login {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+}
+
+@media (max-width: 480px) {
+    .cafm-sign-up-page .name-fields {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+}
+
+ (max-height: 620px) {
+    .cafm-sign-in-page section.for-login .page-card-head {
+        margin-bottom: 12px;
+    }
+
+    .cafm-sign-in-page section.for-login .input-group,
+    .cafm-sign-in-page section.for-login .form-group {
+        margin-bottom: 10px;
+    }
+}

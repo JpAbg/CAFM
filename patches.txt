@@ -1,1 +1,2 @@
 cafm.patches.v1_0.add_monthly_usage_candles_to_dashboard
+cafm.patches.v1_0.clear_technician_default_workspace

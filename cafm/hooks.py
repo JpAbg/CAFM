@@ -31,12 +31,11 @@ app_include_css = "/assets/cafm/css/cafm.css"
 app_include_js = [
     "/assets/cafm/js/custom-dashboard-chart.js?v=23",
     "/assets/cafm/js/facility_asset_filters.js?v=6",
-    "/assets/cafm/js/welcome-workspace-launcher.js?v=11",
 ]
 
 # include js, css files in header of web template
-# web_include_css = "/assets/cafm/css/cafm.css"
-# web_include_js = "/assets/cafm/js/cafm.js"
+web_include_css = "/assets/cafm/css/sign-up.css?v=2"
+web_include_js = "/assets/cafm/js/sign-up.js"
 
 # include custom scss in every website theme (without file extension ".scss")
 # website_theme_scss = "cafm/public/scss/website"
@@ -210,8 +209,7 @@ override_whitelisted_methods = {
 
 # Request Events
 # ----------------
-# before_request = ["cafm.utils.before_request"]
-# after_request = ["cafm.utils.after_request"]
+after_request = ["cafm.events.user.redirect_technician_default_pages"]
 
 # Job Events
 # ----------
@@ -262,7 +260,13 @@ override_whitelisted_methods = {
 # ignore_translatable_strings_from = []
 
 
-website_route_rules = [{'from_route': '/dashboard/<path:app_path>', 'to_route': 'dashboard'},]
+website_route_rules = [
+    {'from_route': '/dashboard/<path:app_path>', 'to_route': 'dashboard'},
+    {'from_route': '/technician portal', 'to_route': 'technician-portal'},
+    {'from_route': '/employee portal', 'to_route': 'employee-portal'},
+]
+
+on_login = "cafm.events.user.redirect_cafm_after_login"
 
 doc_events = {
     "Issue": {

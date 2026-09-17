@@ -1,9 +1,16 @@
+from unittest.mock import patch
+
 import frappe
 from frappe.tests.utils import FrappeTestCase
 
 from cafm.api import user_maintenance_role_query
 from cafm.events.asset_maintenance_team import validate_member_roles
-from cafm.events.user import enforce_cafm_demo_user_roles
+from cafm.events.user import (
+    apply_cafm_role_profile,
+    enforce_cafm_demo_user_roles,
+    get_cafm_login_redirect,
+)
+from cafm.www.employee_portal import get_context as get_employee_portal_context
 
 
 class TestRoleIntegrity(FrappeTestCase):
@@ -107,3 +114,54 @@ class TestRoleIntegrity(FrappeTestCase):
             {row.role for row in user.roles},
             {"Employee", "Requester / Employee"},
         )
+
+    def test_explicit_employee_profile_replaces_stale_coordinator_roles(self):
+        user = frappe.new_doc("User")
+        user.name = "profile-change@example.com"
+        user.role_profile_name = "CAFM Employee"
+        user.custom_cafm_role_profile = "CAFM Facility Coordinator"
+        user.set(
+            "roles",
+            [
+                {"role": "Employee"},
+                {"role": "Requester / Employee"},
+                {"role": "Facility Coordinator"},
+            ],
+        )
+
+        linked_employee = frappe._dict(
+            name="HR-EMP-TEST",
+            custom_is_facility_technician=0,
+        )
+        with patch("cafm.events.user.frappe.db.get_value", return_value=linked_employee):
+            apply_cafm_role_profile(user)
+
+        self.assertEqual(user.role_profile_name, "CAFM Employee")
+        self.assertEqual(user.custom_cafm_role_profile, "CAFM Employee")
+        self.assertEqual(
+            {row.role for row in user.roles},
+            {"Employee", "Requester / Employee"},
+        )
+
+    def test_facility_supervisor_routes_to_facilities_workspace(self):
+        with patch(
+            "cafm.events.user.frappe.get_roles",
+            return_value=["Employee", "Facility Coordinator"],
+        ):
+            self.assertEqual(
+                get_cafm_login_redirect("coordinator@example.com"),
+                "/app/facilities",
+            )
+
+    def test_linked_facility_supervisor_can_open_employee_portal(self):
+        context = frappe._dict()
+        with patch(
+            "cafm.www.employee_portal.frappe.get_roles",
+            return_value=["Employee", "Facility Manager"],
+        ), patch(
+            "cafm.www.employee_portal.get_employee_for_user",
+            return_value="HR-EMP-SUPERVISOR",
+        ):
+            get_employee_portal_context(context)
+
+        self.assertEqual(context.no_cache, 1)

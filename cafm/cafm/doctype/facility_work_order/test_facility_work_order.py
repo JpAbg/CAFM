@@ -14,6 +14,7 @@ from erpnext.stock.doctype.stock_entry.stock_entry_utils import (
 )
 from frappe.model.workflow import apply_workflow
 from frappe.tests.utils import FrappeTestCase
+from werkzeug.wrappers import Response
 
 from cafm.api import (
     create_maintenance_request,
@@ -44,7 +45,19 @@ from cafm.inspections import (
     generate_inspection_occurrence,
     generate_scheduled_inspections,
 )
+from cafm.events.user import (
+    get_cafm_login_redirect,
+    get_cafm_default_page_redirect,
+    get_technician_default_page_redirect,
+    get_technician_login_redirect,
+    redirect_cafm_after_login,
+    redirect_technician_default_pages,
+)
+from cafm.mobile import get_my_work_order, get_my_work_orders
 from cafm.portal import submit_portal_request
+from cafm.www.client import get_context as get_client_portal_context
+from cafm.www.employee_portal import get_context as get_employee_portal_context
+from cafm.www.technician_portal import get_context as get_technician_portal_context
 from cafm.materials import issue_materials
 from cafm.notifications import (
     notify_overdue_escalations,
@@ -121,6 +134,146 @@ class TestFacilityWorkOrder(FrappeTestCase):
     def tearDown(self):
         frappe.set_user("Administrator")
         frappe.flags.in_import = False
+
+    def test_technician_portal_route_and_role_boundaries(self):
+        self.assertEqual(
+            get_technician_login_redirect(self.technician_user),
+            "/technician%20portal",
+        )
+        self.assertFalse(
+            frappe.db.get_value(
+                "User", self.technician_user, "default_workspace"
+            )
+        )
+        self.assertEqual(
+            get_cafm_login_redirect(self.requester_user),
+            "/employee%20portal",
+        )
+        self.assertIsNone(get_technician_login_redirect(self.requester_user))
+        self.assertIsNone(get_technician_login_redirect(self.manager_user))
+        self.assertIsNone(get_technician_login_redirect(self.coordinator_user))
+        self.assertEqual(
+            get_cafm_login_redirect(self.manager_user), "/app/facilities"
+        )
+        self.assertEqual(
+            get_cafm_login_redirect(self.coordinator_user), "/app/facilities"
+        )
+        with patch(
+            "cafm.events.user.frappe.get_roles",
+            return_value=["Technician", "Facility Manager"],
+        ), patch(
+            "cafm.events.user.frappe.db.exists",
+            return_value=True,
+        ):
+            self.assertEqual(
+                get_cafm_login_redirect("mixed-role@example.com"),
+                "/app/facilities",
+            )
+            self.assertIsNone(
+                get_technician_login_redirect("mixed-role@example.com")
+            )
+        with patch(
+            "cafm.events.user.frappe.get_roles",
+            return_value=["Customer"],
+        ), patch(
+            "cafm.events.user.frappe.db.exists",
+            return_value=False,
+        ):
+            self.assertEqual(
+                get_cafm_login_redirect("client@example.com"), "/client"
+            )
+
+        frappe.cache.hdel("redirect_after_login", self.technician_user)
+        redirect_cafm_after_login(
+            frappe._dict(user=self.technician_user)
+        )
+        self.assertEqual(
+            frappe.cache.hget(
+                "redirect_after_login", self.technician_user
+            ),
+            "/technician%20portal",
+        )
+        frappe.cache.hdel("redirect_after_login", self.technician_user)
+
+        for path in (
+            "/",
+            "/app",
+            "/app/home",
+            "/app/Workspaces/Welcome%20Workspace",
+            "/Welcome%20Workspace",
+        ):
+            self.assertEqual(
+                get_technician_default_page_redirect(
+                    self.technician_user, path
+                ),
+                "/technician%20portal",
+            )
+        self.assertIsNone(
+            get_technician_default_page_redirect(
+                self.technician_user, "/technician%20portal"
+            )
+        )
+        self.assertIsNone(
+            get_technician_default_page_redirect(
+                self.requester_user, "/app"
+            )
+        )
+        for path in ("/", "/login", "/app", "/app/home"):
+            self.assertEqual(
+                get_cafm_default_page_redirect(self.requester_user, path),
+                "/employee%20portal",
+            )
+        self.assertIsNone(
+            get_cafm_default_page_redirect(
+                self.requester_user, "/employee%20portal"
+            )
+        )
+
+        frappe.set_user(self.technician_user)
+        redirect_response = Response("Welcome Workspace", status=200)
+        redirect_technician_default_pages(
+            response=redirect_response,
+            request=frappe._dict(method="GET", path="/app"),
+        )
+        self.assertEqual(redirect_response.status_code, 302)
+        self.assertEqual(
+            redirect_response.headers["Location"],
+            "/technician%20portal",
+        )
+        self.assertEqual(redirect_response.get_data(), b"")
+
+        context = frappe._dict()
+        get_technician_portal_context(context)
+        self.assertEqual(context.no_cache, 1)
+        self.assertRaises(
+            frappe.PermissionError,
+            get_employee_portal_context,
+            frappe._dict(),
+        )
+
+        frappe.set_user(self.requester_user)
+        employee_context = frappe._dict()
+        get_employee_portal_context(employee_context)
+        self.assertEqual(employee_context.no_cache, 1)
+
+        frappe.set_user(self.manager_user)
+        manager_employee_context = frappe._dict()
+        get_employee_portal_context(manager_employee_context)
+        self.assertEqual(manager_employee_context.no_cache, 1)
+        self.assertRaises(
+            frappe.PermissionError,
+            get_technician_portal_context,
+            frappe._dict(),
+        )
+        self.assertRaises(frappe.PermissionError, get_my_work_orders)
+
+        with patch(
+            "cafm.www.client.frappe.get_roles",
+            return_value=["Customer"],
+        ):
+            client_context = frappe._dict()
+            get_client_portal_context(client_context)
+            self.assertEqual(client_context.no_cache, 1)
 
     def make_user(self, email, role):
         frappe.flags.in_import = True
@@ -1188,6 +1341,26 @@ class TestFacilityWorkOrder(FrappeTestCase):
             get_work_order,
             work_order_name,
         )
+        self.assertRaises(
+            frappe.PermissionError,
+            get_my_work_order,
+            work_order_name,
+        )
+
+        other_technician_user = self.make_user(
+            f"cafm.other.technician.{self.suffix}@example.com",
+            "Technician",
+        )
+        self.make_employee(
+            other_technician_user,
+            f"Other Technician {self.suffix}",
+        )
+        frappe.set_user(other_technician_user)
+        self.assertRaises(
+            frappe.PermissionError,
+            get_my_work_order,
+            work_order_name,
+        )
 
         frappe.set_user(self.technician_user)
         assigned = list_assigned_work_orders(
@@ -1199,7 +1372,7 @@ class TestFacilityWorkOrder(FrappeTestCase):
             work_order_name,
             [row["name"] for row in assigned["data"]],
         )
-        details = get_work_order(work_order_name)
+        details = get_my_work_order(work_order_name)
         self.assertEqual(details["technician"], self.technician)
 
         started = update_work_order_status(

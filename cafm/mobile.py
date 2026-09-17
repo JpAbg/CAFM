@@ -2,14 +2,26 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, get_datetime, now_datetime
 
+from cafm.permissions import PRIVILEGED_ROLES
+from cafm.api import _work_order_dict
+
 ACTIVE_STATUSES = ("Assigned", "In Progress", "Pending")
 COMPLETED_STATUSES = ("Resolved", "Closed")
 ALLOWED_VIEWS = ("active", "assigned", "in_progress", "pending", "overdue", "completed")
 
 
+def _require_technician_role():
+    if frappe.session.user == "Guest":
+        frappe.throw(_("Please sign in."), frappe.AuthenticationError)
+    roles = set(frappe.get_roles())
+    if "Technician" not in roles and not roles & PRIVILEGED_ROLES:
+        frappe.throw(_("A Technician role is required."), frappe.PermissionError)
+
+
 @frappe.whitelist()
 def get_my_work_orders(view="active", priority=None, facility_location=None):
     """Return the logged-in technician's work orders for the mobile workspace."""
+    _require_technician_role()
     user = frappe.db.get_value("User", frappe.session.user, ["first_name", "last_name"], as_dict=True)
     user_full_name = " ".join(filter(None, [user.first_name, user.last_name])) if user else frappe.session.user
     employee = frappe.db.get_value(
@@ -72,6 +84,29 @@ def get_my_work_orders(view="active", priority=None, facility_location=None):
     else:
         work_orders.sort(key=lambda row: (not bool(row.is_overdue), row.planned_end or row.modified))
     return {"employee": employee, "user_full_name": user_full_name, "work_orders": work_orders, "locations": locations, "summary": summary}
+
+
+@frappe.whitelist()
+def get_my_work_order(work_order_name):
+    """Return details only when the work order is assigned to this technician."""
+    _require_technician_role()
+    employee = frappe.db.get_value(
+        "Employee", {"user_id": frappe.session.user, "status": "Active"}, "name"
+    )
+    if not employee:
+        frappe.throw(
+            _("Your account is not linked to an active Employee record."),
+            frappe.PermissionError,
+        )
+    work_order = frappe.get_doc("Facility Work Order", work_order_name)
+    roles = set(frappe.get_roles())
+    if not roles & PRIVILEGED_ROLES and work_order.technician != employee:
+        frappe.throw(
+            _("You can only open work orders assigned to you."),
+            frappe.PermissionError,
+        )
+    work_order.check_permission("read")
+    return _work_order_dict(work_order, include_details=True)
 
 @frappe.whitelist()
 def get_my_mobile_notifications(limit=10):
