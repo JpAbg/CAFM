@@ -74,14 +74,19 @@ def validate_requester(doc):
     if roles & PRIVILEGED_ROLES:
         return
 
-    employee = frappe.db.get_value(
-        "Employee", {"user_id": user, "status": "Active"}, "name"
-    )
-    if not employee:
-        frappe.throw(_("Your user account must be linked to an active Employee."))
+    if roles & {"Client", "Customer"}:
+        requester = frappe.db.get_value(
+            "Client", {"user": user, "status": "Active"}, "name"
+        )
+    else:
+        requester = frappe.db.get_value(
+            "Employee", {"user_id": user, "status": "Active"}, "name"
+        )
+    if not requester:
+        frappe.throw(_("Your user account must be linked to an active requester record."))
 
     if doc.is_new():
-        doc.custom_requester = employee
+        doc.custom_requester = requester
         doc.raised_by = user
         return
 

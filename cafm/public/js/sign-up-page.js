@@ -101,9 +101,7 @@
                     throw new Error(getServerMessage(result.data));
                 }
                 submit.textContent = "Account created";
-                window.setTimeout(function () {
-                    window.location.assign("/login");
-                }, 900);
+                window.location.replace((result.data.message && result.data.message.redirect_to) || "/client-portal");
             })
             .catch(function (signInError) {
                 setError(signInError.message || "Unable to create the account.");
