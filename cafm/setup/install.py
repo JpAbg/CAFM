@@ -14,6 +14,7 @@ ROLES = (
     "Technician",
     "Requester / Employee",
     "Vendor",
+    "Client",
 )
 
 WORKFLOW_STATES = {
@@ -109,14 +110,18 @@ def backfill_asset_qr_codes():
 
 def ensure_roles():
     for role_name in ROLES:
-        if not frappe.db.exists("Role", role_name):
-            frappe.get_doc(
-                {
-                    "doctype": "Role",
-                    "role_name": role_name,
-                    "desk_access": 1,
-                }
-            ).insert(ignore_permissions=True)
+        desk_access = 0 if role_name == "Client" else 1
+        if frappe.db.exists("Role", role_name):
+            if frappe.db.get_value("Role", role_name, "desk_access") != desk_access:
+                frappe.db.set_value("Role", role_name, "desk_access", desk_access)
+            continue
+        frappe.get_doc(
+            {
+                "doctype": "Role",
+                "role_name": role_name,
+                "desk_access": desk_access,
+            }
+        ).insert(ignore_permissions=True)
 
 
 def ensure_cafm_role_profiles():

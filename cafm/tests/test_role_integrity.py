@@ -10,6 +10,7 @@ from cafm.events.user import (
     enforce_cafm_demo_user_roles,
     get_cafm_login_redirect,
 )
+from cafm.www.client_portal import get_context as get_client_portal_context
 from cafm.www.employee_portal import get_context as get_employee_portal_context
 
 
@@ -153,6 +154,26 @@ class TestRoleIntegrity(FrappeTestCase):
                 "/app/facilities",
             )
 
+    def test_client_routes_to_client_portal(self):
+        with patch(
+            "cafm.events.user.frappe.get_roles",
+            return_value=["Client"],
+        ), patch("cafm.events.user.frappe.db.exists", return_value=False):
+            self.assertEqual(
+                get_cafm_login_redirect("client.com"),
+                "/client-portal",
+            )
+
+    def test_administrator_can_open_client_portal_without_redirect(self):
+        self.assertIsNone(get_cafm_login_redirect("Administrator"))
+        context = frappe._dict()
+        with patch(
+            "cafm.www.client_portal.frappe.get_roles",
+            return_value=["Administrator", "System Manager"],
+        ):
+            get_client_portal_context(context)
+        self.assertEqual(context.no_cache, 1)
+
     def test_linked_facility_supervisor_can_open_employee_portal(self):
         context = frappe._dict()
         with patch(
@@ -165,3 +186,12 @@ class TestRoleIntegrity(FrappeTestCase):
             get_employee_portal_context(context)
 
         self.assertEqual(context.no_cache, 1)
+
+    def test_client_cannot_open_employee_portal(self):
+        context = frappe._dict()
+        with patch(
+            "cafm.www.employee_portal.frappe.get_roles",
+            return_value=["Client"],
+        ):
+            with self.assertRaises(frappe.PermissionError):
+                get_employee_portal_context(context)

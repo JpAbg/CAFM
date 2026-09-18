@@ -39,6 +39,8 @@ def _cafm_employee_roles(doc, include_employee_role=False):
 def create_employee_user_account(doc, method=None):
     """Create and link a secure login for an active employee with an email."""
 
+    if getattr(doc.flags, "cafm_client_requester", False):
+        return
     if doc.get("user_id") or doc.get("status") != "Active":
         return
 
@@ -79,6 +81,8 @@ def create_employee_user_account(doc, method=None):
 def ensure_employee_user_roles(doc, method=None):
     """Add employee roles after the linked Employee record exists."""
 
+    if getattr(doc.flags, "cafm_client_requester", False):
+        return
     if not doc.get("user_id") or doc.get("status") != "Active":
         return
 

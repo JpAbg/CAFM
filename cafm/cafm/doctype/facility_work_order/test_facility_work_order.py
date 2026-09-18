@@ -55,7 +55,7 @@ from cafm.events.user import (
 )
 from cafm.mobile import get_my_work_order, get_my_work_orders
 from cafm.portal import submit_portal_request
-from cafm.www.client import get_context as get_client_portal_context
+from cafm.www.client_portal import get_context as get_client_portal_context
 from cafm.www.employee_portal import get_context as get_employee_portal_context
 from cafm.www.technician_portal import get_context as get_technician_portal_context
 from cafm.materials import issue_materials
@@ -174,13 +174,13 @@ class TestFacilityWorkOrder(FrappeTestCase):
             )
         with patch(
             "cafm.events.user.frappe.get_roles",
-            return_value=["Customer"],
+            return_value=["Client"],
         ), patch(
             "cafm.events.user.frappe.db.exists",
             return_value=False,
         ):
             self.assertEqual(
-                get_cafm_login_redirect("client@example.com"), "/client"
+                get_cafm_login_redirect("client@example.com"), "/client-portal"
             )
 
         frappe.cache.hdel("redirect_after_login", self.technician_user)
@@ -268,7 +268,7 @@ class TestFacilityWorkOrder(FrappeTestCase):
         self.assertRaises(frappe.PermissionError, get_my_work_orders)
 
         with patch(
-            "cafm.www.client.frappe.get_roles",
+            "cafm.www.client_portal.frappe.get_roles",
             return_value=["Customer"],
         ):
             client_context = frappe._dict()

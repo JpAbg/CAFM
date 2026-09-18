@@ -1,0 +1,313 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-09-18 09:50:18.232066",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_details_tab",
+  "client_information_section",
+  "client",
+  "naming_series",
+  "client_type",
+  "user",
+  "column_break_1",
+  "status",
+  "image",
+  "individual_details_section",
+  "first_name",
+  "middle_name",
+  "last_name",
+  "column_break_2",
+  "gender",
+  "date_of_birth",
+  "salutation",
+  "company_details_section",
+  "company_name",
+  "contact_person",
+  "partnership_details_section",
+  "date_of_partnership",
+  "contact_tab",
+  "contact_details_section",
+  "mobile_number",
+  "email_address",
+  "column_break_3",
+  "preferred_contact_via",
+  "website",
+  "address_tab",
+  "address_section",
+  "address_line_1",
+  "address_line_2",
+  "column_break_4",
+  "city",
+  "state",
+  "column_break_5",
+  "country",
+  "pincode"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Overview"
+  },
+  {
+   "fieldname": "client_information_section",
+   "fieldtype": "Section Break",
+   "label": "Client Information"
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Client",
+   "no_copy": 1,
+   "print_hide": 1,
+   "report_hide": 1
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "no_copy": 1,
+   "options": "MNG-CL-",
+   "set_only_once": 1
+  },
+  {
+   "default": "Individual",
+   "fieldname": "client_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Client Type",
+   "options": "Individual\nCompany",
+   "reqd": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "User",
+   "options": "User",
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nInactive",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image / Logo",
+   "no_copy": 1
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.client_type=='Individual'",
+   "fieldname": "individual_details_section",
+   "fieldtype": "Section Break",
+   "label": "Individual Details"
+  },
+  {
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "First Name",
+   "mandatory_depends_on": "eval:doc.client_type=='Individual'"
+  },
+  {
+   "fieldname": "middle_name",
+   "fieldtype": "Data",
+   "label": "Middle Name"
+  },
+  {
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "label": "Last Name"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Link",
+   "label": "Gender",
+   "mandatory_depends_on": "eval:doc.client_type=='Individual'",
+   "options": "Gender"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date Of Birth",
+   "mandatory_depends_on": "eval:doc.client_type=='Individual'"
+  },
+  {
+   "fieldname": "salutation",
+   "fieldtype": "Link",
+   "label": "Salutation",
+   "options": "Salutation"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.client_type=='Company'",
+   "fieldname": "company_details_section",
+   "fieldtype": "Section Break",
+   "label": "Company Details"
+  },
+  {
+   "fieldname": "company_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Company Name",
+   "mandatory_depends_on": "eval:doc.client_type=='Company'"
+  },
+  {
+   "description": "Primary contact person at this company",
+   "fieldname": "contact_person",
+   "fieldtype": "Data",
+   "label": "Contact Person"
+  },
+  {
+   "fieldname": "partnership_details_section",
+   "fieldtype": "Section Break",
+   "label": "Partnership Details"
+  },
+  {
+   "fieldname": "date_of_partnership",
+   "fieldtype": "Date",
+   "label": "Date Of Partnership",
+   "reqd": 1
+  },
+  {
+   "fieldname": "contact_tab",
+   "fieldtype": "Tab Break",
+   "label": "Contact Details"
+  },
+  {
+   "fieldname": "contact_details_section",
+   "fieldtype": "Section Break",
+   "label": "Contact Details"
+  },
+  {
+   "fieldname": "mobile_number",
+   "fieldtype": "Data",
+   "label": "Mobile Number",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "email_address",
+   "fieldtype": "Data",
+   "label": "Email Address",
+   "options": "Email"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "preferred_contact_via",
+   "fieldtype": "Select",
+   "label": "Preferred Contact Via",
+   "options": "\nMobile\nEmail"
+  },
+  {
+   "fieldname": "website",
+   "fieldtype": "Data",
+   "label": "Website",
+   "options": "Url"
+  },
+  {
+   "fieldname": "address_tab",
+   "fieldtype": "Tab Break",
+   "label": "Address"
+  },
+  {
+   "fieldname": "address_section",
+   "fieldtype": "Section Break",
+   "label": "Address"
+  },
+  {
+   "fieldname": "address_line_1",
+   "fieldtype": "Data",
+   "label": "Address Line 1"
+  },
+  {
+   "fieldname": "address_line_2",
+   "fieldtype": "Data",
+   "label": "Address Line 2"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Data",
+   "label": "State"
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Link",
+   "label": "Country",
+   "options": "Country"
+  },
+  {
+   "fieldname": "pincode",
+   "fieldtype": "Data",
+   "label": "Pincode"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-18 10:12:19.671721",
+ "modified_by": "Administrator",
+ "module": "CAFM",
+ "name": "Client",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "client_name",
+ "show_name_in_global_search": 1,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "client_name",
+ "track_changes": 1
+}

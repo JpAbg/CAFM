@@ -10,6 +10,12 @@ def get_employee_for_user(user):
     )
 
 
+def get_client_for_user(user):
+    return frappe.db.get_value(
+        "Client", {"user": user, "status": "Active"}, "name"
+    )
+
+
 def get_provider_for_user(user):
     return frappe.db.get_value(
         "Facility Service Provider",
@@ -23,6 +29,9 @@ def issue_query(user=None):
     roles = set(frappe.get_roles(user))
     if roles & PRIVILEGED_ROLES:
         return ""
+
+    if roles & {"Client", "Customer"}:
+        return f"`tabIssue`.`raised_by` = {frappe.db.escape(user)}"
 
     employee = get_employee_for_user(user)
     if not employee:
@@ -46,6 +55,9 @@ def has_issue_permission(doc, user=None, ptype=None, debug=False):
     roles = set(frappe.get_roles(user))
     if roles & PRIVILEGED_ROLES:
         return True
+
+    if roles & {"Client", "Customer"}:
+        return doc.raised_by == user and ptype not in ("delete", "cancel", "submit")
 
     employee = get_employee_for_user(user)
     if not employee:
