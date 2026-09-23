@@ -28,6 +28,27 @@ def _requester_for_current_user():
         frappe.throw(_("Your account is not linked to an active requester record."))
     return requester
 
+@frappe.whitelist()
+def get_assigned_technician(email):
+    if not email:
+        frappe.throw(_("A technician email is required."))
+    fields = ["name", "employee_name", "cell_number", "designation", "department",
+              "user_id", "company_email", "personal_email"]
+    employee = (
+        frappe.db.get_value("Employee", {"status": "Active", "user_id": email}, fields, as_dict=True)
+        or frappe.db.get_value("Employee", {"status": "Active", "company_email": email}, fields, as_dict=True)
+        or frappe.db.get_value("Employee", {"status": "Active", "personal_email": email}, fields, as_dict=True)
+    )
+    if not employee:
+        frappe.throw(_("No technician found for this account."))
+    return {
+        "name": employee.name,
+        "full_name": employee.employee_name,
+        "email": employee.user_id or employee.company_email or employee.personal_email or email,
+        "phone": employee.cell_number or None,
+        "designation": employee.designation or None,
+        "department": employee.department or None,
+    }
 
 @frappe.whitelist()
 def get_portal_requests():
@@ -96,8 +117,8 @@ def get_portal_requests():
         "categories": frappe.get_all("Issue Type", pluck="name", order_by="name"),
         "priorities": frappe.get_all("Issue Priority", pluck="name", order_by="name"),
         "requester": requester or frappe.session.user,
-        "employees": frappe.get_all("Employee", filters={"status": "Active"}, pluck="name", order_by="name") if is_admin else [requester],
-        "assets": frappe.get_all("Asset", pluck="name", order_by="name"),
+        "clients": frappe.get_all("Client", filters={"status": "Active"}, pluck="name", order_by="name") if is_admin else [requester],
+        "assets": frappe.get_all("Asset", fields=["name", "location"], order_by="name"),
         "is_admin": is_admin,
         "can_create": True,
         "can_manage_requests": True,
@@ -109,7 +130,7 @@ def get_portal_requests():
 def submit_portal_request(subject, facility_location, issue_type, priority, description, requester=None, asset=None):
     if _is_portal_admin():
         requester = (requester or "").strip()
-        if not requester or not frappe.db.exists("Employee", {"name": requester, "status": "Active"}):
+        if not requester or not frappe.db.exists("Client", {"name": requester, "status": "Active"}):
             frappe.throw(_("Select an active requester."))
     else:
         requester = _requester_for_current_user()
@@ -156,7 +177,7 @@ def update_portal_request(name, subject, facility_location, issue_type, priority
         "custom_asset": asset or None,
     }
     if _is_portal_admin():
-        if not requester or not frappe.db.exists("Employee", {"name": requester, "status": "Active"}):
+        if not requester or not frappe.db.exists("Client", {"name": requester, "status": "Active"}):
             frappe.throw(_("Select an active requester."))
         values["custom_requester"] = requester
     required_values = [values["subject"], values["custom_facility_location"], values["issue_type"], values["priority"], values["description"]]

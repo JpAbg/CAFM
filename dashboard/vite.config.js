@@ -6,10 +6,12 @@ import frappeui from '../../../frappe-ui/vite/index.js';
 import proxyOptions from './proxyOptions.js';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-	plugins: [
-		vue(),
-		frappeui({ frappeProxy: false, jinjaBootData: false, buildConfig: false }),
+export default defineConfig(({ mode }) => ({
+    base: mode === 'capacitor' ? './' : '/assets/cafm/dashboard/',
+
+    plugins: [
+        vue(),
+        frappeui({ frappeProxy: false, jinjaBootData: false, buildConfig: false }),
 		VitePWA({
 			registerType: 'autoUpdate',
 
@@ -54,8 +56,10 @@ export default defineConfig({
 		}
 	},
 	build: {
-		outDir: '../cafm/public/dashboard',
+		outDir: mode === 'capacitor'
+                    ? './dist'
+                    : '../cafm/public/dashboard',
 		emptyOutDir: true,
 		target: 'es2015',
 	},
-});
+}));

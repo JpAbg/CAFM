@@ -9,33 +9,153 @@ frappe.ready(function () {
   const root = document.getElementById("cafm-client-portal");
   if (!root) return;
 
+  const THEME_KEY = "cafm-client-portal-theme";
+  const COLLAPSE_KEY = "cafm-client-portal-collapsed";
+  const VIEW_KEY = "cafm-client-portal-default-view";
+
   const state = {
-    requestView: "all",
+    requestView: localStorage.getItem(VIEW_KEY) || "all",
     priority: "All",
     location: "All",
     requestData: {},
     selectedRequest: null,
     requestForm: false,
     editingRequest: null,
-    collapsed: localStorage.getItem("cafm-client-portal-collapsed") === "1",
+    technicianEmail: null,
+    technicianInfo: null,
+    technicianLoading: false,
+    settingsOpen: false,
+    theme: localStorage.getItem(THEME_KEY) || "system",
+    collapsed: localStorage.getItem(COLLAPSE_KEY) === "1",
     userName: "client",
   };
 
+  window.portalState = state;
+
+  const portalHistory = [];
+
+  function savePortalState() {
+    portalHistory.push({
+      requestView: state.requestView,
+      selectedRequest: state.selectedRequest,
+      requestForm: state.requestForm,
+      editingRequest: state.editingRequest,
+      technicianEmail: state.technicianEmail,
+      technicianInfo: state.technicianInfo,
+      technicianLoading: state.technicianLoading,
+    });
+  }
+
+  function restorePortalState() {
+    if (!portalHistory.length) return false;
+
+    const previous = portalHistory.pop();
+
+    state.requestView = previous.requestView;
+    state.selectedRequest = previous.selectedRequest;
+    state.requestForm = previous.requestForm;
+    state.editingRequest = previous.editingRequest;
+    state.technicianEmail = previous.technicianEmail;
+    state.technicianInfo = previous.technicianInfo;
+    state.technicianLoading = previous.technicianLoading;
+
+    render();
+    return true;
+  }
+
+  const resolveTheme = pref =>
+    (pref === "dark" || pref === "light")
+      ? pref
+      : (window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light");
+
+  const applyTheme = () => root.setAttribute("data-theme", resolveTheme(state.theme));
+
+  if (window.matchMedia) {
+    const schemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const onSchemeChange = () => {
+      if (state.theme === "system") applyTheme();
+    };
+
+    if (schemeQuery.addEventListener) {
+      schemeQuery.addEventListener("change", onSchemeChange);
+    } else if (schemeQuery.addListener) {
+      schemeQuery.addListener(onSchemeChange);
+    }
+  }
+
   const esc = value => String(value || "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
   const call = (method, args) => new Promise((resolve, reject) => frappe.call({
-    method, args: args || {},
+    method,
+    args: args || {},
     callback: response => resolve(response.message || {}),
     error: reject,
   }));
+
   const displayName = value => {
-    const parts = String(value || "client").charAt(0).toUpperCase() + String(value || "client").slice(1);
+    const parts =
+      String(value || "client").charAt(0).toUpperCase() +
+      String(value || "client").slice(1);
     return parts;
   };
-  const initials = value => displayName(value).split(/\s+/).slice(0, 2)
-    .map(part => part.charAt(0).toUpperCase()).join("");
-  const statusKey = value => String(value || "").toLowerCase().replace(/\s+/g, "_");
+
+  const initials = value => displayName(value)
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join("");
+
+  const statusKey = value =>
+    String(value || "").toLowerCase().replace(/\s+/g, "_");
+
+  const statusBucket = value => {
+    const status = statusKey(value || "New");
+
+    if (["resolved", "closed"].includes(status)) return "resolved";
+    if (status === "new") return "new";
+
+    return "in_progress";
+  };
+
+  const present = value =>
+    value !== null && value !== undefined && value !== "";
+
+  const detailField = (label, value, badgeClass) =>
+    present(value)
+      ? "<div class=\"cp-detail-card" +
+        (!badgeClass && String(value || "").length > 18
+          ? " cp-field-wide"
+          : "") +
+        "\"><small>" +
+        esc(label) +
+        "</small>" +
+        (badgeClass
+          ? "<span class=\"cp-table-badge " +
+            badgeClass +
+            "\">" +
+            esc(value) +
+            "</span>"
+          : "<strong>" +
+            esc(value) +
+            "</strong>") +
+        "</div>"
+      : "";
+
+  const detailSection = (title, fields) =>
+    fields.some(Boolean)
+      ? "<section class=\"cp-drawer-section\"><h3>" +
+        esc(title) +
+        "</h3><div class=\"cp-detail-grid-new\">" +
+        fields.join("") +
+        "</div></section>"
+      : "";
 
   function icon(name) {
     const paths = {
@@ -49,121 +169,607 @@ frappe.ready(function () {
       down: '<path d="m6 9 6 6 6-6"/>',
       about: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
       logout: '<path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h6a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-6"/>',
-      left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>',
-      plus: '<path d="M12 5v14M5 12h14"/>'
+      left: '<path d="m15 18-6-6 6-6"/>',
+      right: '<path d="m9 18 6-6-6-6"/>',
+      plus: '<path d="M12 5v14M5 12h14"/>',
+      settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1Z"/>',
+      sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/>',
+      moon: '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z"/>',
+      laptop: '<rect x="4" y="4" width="16" height="11" rx="1.5"/><path d="M2 19h20"/>'
     };
-    return '<svg class="cp-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' + (paths[name] || paths.requests) + '</svg>';
+
+    return '<svg class="cp-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' +
+      (paths[name] || paths.requests) +
+      '</svg>';
   }
 
   function navButton(id, label, count, iconName) {
     const active = ("request-" + state.requestView) === id;
-    return '<button class="cp-nav-item' + (active ? ' active' : '') + '" data-section="' + id + '" title="' + esc(label) + '"><span class="cp-nav-icon">' + icon(iconName) + '</span><em>' + esc(label) + '</em></button>';
+
+    return '<button class="cp-nav-item' +
+      (active ? ' active' : '') +
+      '" data-section="' +
+      id +
+      '" title="' +
+      esc(label) +
+      '"><span class="cp-nav-icon">' +
+      icon(iconName) +
+      '</span><em>' +
+      esc(label) +
+      '</em></button>';
+  }
+
+  function mobileNavButton(id, label, iconName) {
+    const active = ("request-" + state.requestView) === id;
+
+    return '<button class="cp-mobile-nav-item' +
+      (active ? ' active' : '') +
+      '" data-section="' +
+      id +
+      '"><span class="cp-nav-icon">' +
+      icon(iconName) +
+      '</span><em>' +
+      esc(label) +
+      '</em></button>';
+  }
+
+  function mobileNav() {
+    const canCreate = state.requestData.can_create !== false;
+
+    return '<nav class="cp-mobile-nav">' +
+      mobileNavButton("request-all", "All", "requests") +
+      mobileNavButton("request-new", "New", "new") +
+      (canCreate
+        ? '<button class="cp-mobile-fab" type="button" data-create-request aria-label="Create request"><span class="cp-nav-icon">' +
+          icon("plus") +
+          '</span></button>'
+        : '') +
+      mobileNavButton("request-in_progress", "Active", "progress") +
+      mobileNavButton("request-resolved", "Resolved", "resolved") +
+      '</nav>';
   }
 
   function sidebar() {
     const requestRows = state.requestData.requests || [];
-    const requestCount = key => requestRows.filter(row => {
-      const status = statusKey(row.custom_issue_status || "New");
-      return key === "all" ? !["resolved", "closed", "rejected"].includes(status) : key === "resolved" ? ["resolved", "closed"].includes(status) : status === key;
-    }).length;
-    return '<aside class="cp-sidebar">'
-      + '<div class="cp-brand"><span>' + icon("brand") + '</span><div><strong>CAFM</strong><small>Client Portal</small></div></div>'
-      + '<div class="cp-account-wrap"><button class="cp-profile cp-account-button" type="button" aria-expanded="false"><span>' + esc(initials(state.userName)) + '</span><div><p>FACILITY TEAM</p><h2>' + esc(displayName(state.userName)) + '</h2></div><b>' + icon("down") + '</b></button>'
-      + '<div class="cp-account-menu" hidden><button class="cp-account-about" type="button">' + icon("about") + '<span>About</span></button><button class="cp-account-logout" type="button">' + icon("logout") + '<span>Log out</span></button></div></div>'
-      + '<div class="cp-nav-group"><small>MY REQUESTS / WORK ORDERS</small>'
-      + navButton("request-all", "All Requests", requestCount("all"), "requests")
-      + navButton("request-new", "New", requestCount("new"), "new")
-      + navButton("request-in_progress", "In Progress", requestCount("in_progress"), "progress")
-      + navButton("request-resolved", "Resolved", requestCount("resolved"), "resolved")
-      + '</div>'
-      + '<p class="cp-note">Requests submitted by your account only.</p>'
-      + '<button class="cp-collapse" type="button"><span class="cp-collapse-icon">' + icon(state.collapsed ? "right" : "left") + '</span><em>' + (state.collapsed ? "Expand" : "Collapse") + '</em></button>'
-      + '</aside>';
+
+    const requestCount = key =>
+      requestRows.filter(row => {
+        const bucket = statusBucket(row.custom_issue_status);
+        return key === "all" ? bucket !== "resolved" : bucket === key;
+      }).length;
+
+    return '<aside class="cp-sidebar">' +
+      '<div class="cp-brand"><span>' +
+      icon("brand") +
+      '</span><div><strong>CAFM</strong><small>Client Portal</small></div></div>' +
+      '<div class="cp-account-wrap"><button class="cp-profile cp-account-button" type="button" aria-expanded="false"><span>' +
+      esc(initials(state.userName)) +
+      '</span><div><p>FACILITY TEAM</p><h2>' +
+      esc(displayName(state.userName)) +
+      '</h2></div><b>' +
+      icon("down") +
+      '</b></button>' +
+      '<div class="cp-account-menu" hidden><button class="cp-account-about" type="button">' +
+      icon("about") +
+      '<span>About</span></button><button class="cp-account-settings" type="button">' +
+      icon("settings") +
+      '<span>Settings</span></button><button class="cp-account-logout" type="button">' +
+      icon("logout") +
+      '<span>Log out</span></button></div></div>' +
+      '<div class="cp-nav-group"><small>MY REQUESTS / WORK ORDERS</small>' +
+      navButton("request-all", "All Requests", requestCount("all"), "requests") +
+      navButton("request-new", "New", requestCount("new"), "new") +
+      navButton("request-in_progress", "In Progress", requestCount("in_progress"), "progress") +
+      navButton("request-resolved", "Resolved", requestCount("resolved"), "resolved") +
+      '</div>' +
+      '<p class="cp-note">Requests submitted by your account only.</p>' +
+      '<button class="cp-collapse" type="button"><span class="cp-collapse-icon">' +
+      icon(state.collapsed ? "right" : "left") +
+      '</span><em>' +
+      (state.collapsed ? "Expand" : "Collapse") +
+      '</em></button>' +
+      '</aside>';
   }
 
   function requestContent() {
     const requests = (state.requestData.requests || []).filter(row => {
-      const status = statusKey(row.custom_issue_status || "New");
-      return state.requestView === "all" ? !["resolved", "closed"].includes(status) : state.requestView === "resolved" ? ["resolved", "closed"].includes(status) : status === state.requestView;
+      const bucket = statusBucket(row.custom_issue_status);
+      return state.requestView === "all"
+        ? bucket !== "resolved"
+        : bucket === state.requestView;
     });
-    const display = value => value === null || value === undefined || value === "" ? "-" : String(value);
-    const rows = requests.map(row => {
-      const searchable = [row.name, row.subject, row.custom_requester, row.assigned_to_email, row.custom_issue_status, row.status, row.priority, row.custom_facility_location, row.issue_type, row.custom_asset].map(display).join(" ").toLowerCase();
-      return "<tr data-request-row=\"" + esc(searchable) + "\"><td><button class=\"cp-record-link\" type=\"button\" data-request=\"" + esc(row.name) + "\">" + esc(row.name) + "</button></td><td>" + esc(display(row.subject)) + "</td><td><span class=\"cp-table-badge status-" + esc(statusKey(row.custom_issue_status || "New")) + "\">" + esc(display(row.custom_issue_status || "New")) + "</span></td><td>" + esc(display(row.assigned_to_email)) + "</td><td><span class=\"cp-table-badge status-" + esc(statusKey(row.status || "Open")) + "\">" + esc(display(row.status || "Open")) + "</span></td><td><span class=\"cp-table-badge priority-" + esc(statusKey(row.priority)) + "\">" + esc(display(row.priority)) + "</span></td></tr>";
-    }).join("");
-    const table = rows ? "<div class=\"cp-request-table-wrap\"><table class=\"cp-request-table\"><thead><tr><th>ID</th><th>Subject</th><th>Issue Status</th><th>Assigned To (Email)</th><th>Status</th><th>Priority</th></tr></thead><tbody>" + rows + "</tbody></table></div>" : "<div class=\"cp-empty\"><h3>No matching requests</h3><p>Create a request when you need help from the facility team.</p></div>";
-    return header("MY REQUESTS", "Track your facility requests", state.requestData.can_create !== false) + "<section class=\"cp-request-toolbar\"><input type=\"search\" data-request-search placeholder=\"Search by ID or displayed fields\"><strong>" + requests.length + " records</strong></section>" + table + (state.requestForm ? requestForm() : "") + requestModal();
+
+    const display = value =>
+      value === null || value === undefined || value === ""
+        ? "-"
+        : String(value);
+
+    let rows = "";
+    let cards = "";
+
+    requests.forEach(row => {
+      const searchable = [
+        row.name,
+        row.subject,
+        row.custom_requester,
+        row.assigned_to_email,
+        row.custom_issue_status,
+        row.status,
+        row.priority,
+        row.custom_facility_location,
+        row.issue_type,
+        row.custom_asset
+      ].map(display).join(" ").toLowerCase();
+
+      const recordLink =
+        '<button class="cp-record-link" type="button" data-request="' +
+        esc(row.name) +
+        '">' +
+        esc(row.name) +
+        '</button>';
+
+      const issueStatusBadge =
+        '<span class="cp-table-badge status-' +
+        esc(statusKey(row.custom_issue_status || "New")) +
+        '">' +
+        esc(display(row.custom_issue_status || "New")) +
+        '</span>';
+
+      const statusBadge =
+        '<span class="cp-table-badge status-' +
+        esc(statusKey(row.status || "Open")) +
+        '">' +
+        esc(display(row.status || "Open")) +
+        '</span>';
+
+      const priorityBadge =
+        '<span class="cp-table-badge priority-' +
+        esc(statusKey(row.priority)) +
+        '">' +
+        esc(display(row.priority)) +
+        '</span>';
+
+      rows +=
+        '<tr data-request-row="' +
+        esc(searchable) +
+        '"><td>' +
+        recordLink +
+        '</td><td>' +
+        esc(display(row.subject)) +
+        '</td><td>' +
+        issueStatusBadge +
+        '</td><td>' +
+        esc(display(row.assigned_to_email)) +
+        '</td><td>' +
+        statusBadge +
+        '</td><td>' +
+        priorityBadge +
+        '</td></tr>';
+
+      cards +=
+        '<div class="cp-request-mcard" data-request-row="' +
+        esc(searchable) +
+        '" data-request-card="' +
+        esc(row.name) +
+        '" role="button" tabindex="0">' +
+        '<div class="cp-request-mcard-top">' +
+        recordLink +
+        priorityBadge +
+        '</div>' +
+        '<p class="cp-request-mcard-subject">' +
+        esc(display(row.subject)) +
+        '</p>' +
+        '<div class="cp-request-mcard-meta">' +
+        '<div><small>Issue Status</small>' +
+        issueStatusBadge +
+        '</div>' +
+        '<div><small>Status</small>' +
+        statusBadge +
+        '</div>' +
+        '<div><small>Assigned To</small><span>' +
+        esc(display(row.assigned_to_email)) +
+        '</span></div>' +
+        '</div></div>';
+    });
+
+    const table = rows
+      ? '<div class="cp-request-table-wrap"><table class="cp-request-table"><thead><tr><th>ID</th><th>Subject</th><th>Issue Status</th><th>Assigned To (Email)</th><th>Status</th><th>Priority</th></tr></thead><tbody>' +
+        rows +
+        '</tbody></table></div><div class="cp-request-cards">' +
+        cards +
+        '</div>'
+      : '<div class="cp-empty"><h3>No matching requests</h3><p>Create a request when you need help from the facility team.</p></div>';
+
+    return header(
+      "MY REQUESTS",
+      "Track your facility requests",
+      state.requestData.can_create !== false
+    ) +
+      '<section class="cp-request-toolbar"><input type="search" data-request-search placeholder="Search by ID or displayed fields"><strong>' +
+      requests.length +
+      ' records</strong></section>' +
+      table +
+      (state.requestForm ? requestForm() : "") +
+      requestModal() +
+      technicianModal() +
+      settingsDrawer();
+  }
+
+  function settingsDrawer() {
+    if (!state.settingsOpen) return "";
+
+    const seg = (value, label, iconName) =>
+      '<button type="button" class="cp-seg-btn' +
+      (state.theme === value ? " active" : "") +
+      '" data-theme-option="' +
+      value +
+      '">' +
+      icon(iconName) +
+      '<span>' +
+      esc(label) +
+      '</span></button>';
+
+    const viewOptions = [
+      ["all", "All Requests"],
+      ["new", "New"],
+      ["in_progress", "In Progress"],
+      ["resolved", "Resolved"]
+    ];
+
+    const defaultView = localStorage.getItem(VIEW_KEY) || "all";
+
+    const viewSelect =
+      '<select data-default-view>' +
+      viewOptions.map(([value, label]) =>
+        '<option value="' +
+        value +
+        '"' +
+        (defaultView === value ? " selected" : "") +
+        ">" +
+        esc(label) +
+        "</option>"
+      ).join("") +
+      "</select>";
+
+    return '<div class="cp-drawer-layer" role="dialog" aria-modal="true"><button class="cp-drawer-backdrop" type="button" data-settings-close aria-label="Close"></button><section class="cp-record-drawer cp-view-drawer"><header class="cp-drawer-header"><div><p>PREFERENCES</p><h2>Settings</h2><span>Personalize how the portal looks and behaves.</span></div><button class="cp-drawer-close" type="button" data-settings-close aria-label="Close">&times;</button></header>' +
+      '<section class="cp-drawer-section"><h3>Appearance</h3><div class="cp-setting-row"><div><strong>Theme</strong><small>Choose light, dark, or match your device.</small></div><div class="cp-seg">' +
+      seg("light", "Light", "sun") +
+      seg("dark", "Dark", "moon") +
+      seg("system", "System", "laptop") +
+      '</div></div></section>' +
+      '<section class="cp-drawer-section"><h3>Sidebar</h3><div class="cp-setting-row"><div><strong>Start collapsed</strong><small>Keep the sidebar collapsed when you open the portal.</small></div><label class="cp-switch"><input type="checkbox" data-collapsed-default' +
+      (state.collapsed ? " checked" : "") +
+      '><span></span></label></div></section>' +
+      '<section class="cp-drawer-section"><h3>Requests</h3><div class="cp-setting-row"><div><strong>Default view</strong><small>Section shown first when you open My Requests.</small></div>' +
+      viewSelect +
+      '</div></section>' +
+      '<footer class="cp-drawer-footer cp-view-footer"><button class="cp-secondary" type="button" data-settings-close>Close</button></footer>' +
+      '</section></div>';
   }
 
   function header(label, title, allowCreate) {
-    return "<header class=\"cp-main-header\"><div><p>" + esc(label) + "</p><h1>" + esc(title) + "</h1></div><button class=\"cp-notifications\" type=\"button\" title=\"Notifications\">" + icon("bell") + "</button><button class=\"cp-refresh\" type=\"button\">" + icon("refresh") + "<span>Refresh</span></button>" + (allowCreate ? "<button class=\"cp-header-create\" type=\"button\" data-create-request>" + icon("plus") + "<span>Create Request</span></button>" : "") + "</header>";
+    return '<header class="cp-main-header"><div><p>' +
+      esc(label) +
+      '</p><h1>' +
+      esc(title) +
+      '</h1></div><button class="cp-notifications" type="button" title="Notifications">' +
+      icon("bell") +
+      '</button><button class="cp-refresh" type="button">' +
+      icon("refresh") +
+      '<span>Refresh</span></button>' +
+      (allowCreate
+        ? '<button class="cp-header-create" type="button" data-create-request>' +
+          icon("plus") +
+          '<span>Create Request</span></button>'
+        : "") +
+      '</header>';
   }
 
   function requestForm() {
-    const data = state.requestData, row = state.editingRequest || {};
-    const options = (values, current, label) => "<option value=\"\" disabled" + (!current ? " selected" : "") + ">Select " + label + "</option>" + (values || []).map(value => "<option value=\"" + esc(value) + "\"" + (current === value ? " selected" : "") + ">" + esc(value) + "</option>").join("");
+    const data = state.requestData;
+    const row = state.editingRequest || {};
+
+    const options = (values, current, label) =>
+      '<option value="" disabled' +
+      (!current ? " selected" : "") +
+      '>Select ' +
+      label +
+      '</option>' +
+      (values || []).map(value => {
+        const optionValue =
+          typeof value === "object" ? value.name : value;
+
+        return '<option value="' +
+          esc(optionValue) +
+          '"' +
+          (current === optionValue ? " selected" : "") +
+          ">" +
+          esc(optionValue) +
+          "</option>";
+      }).join("");
+
     const title = state.editingRequest ? "Edit Issue" : "Create Issue";
-    const submitLabel = state.editingRequest ? "Save changes" : "Create Issue";
+    const submitLabel = state.editingRequest
+      ? "Save changes"
+      : "Create Issue";
+
     const requester = row.custom_requester || data.requester || "";
+
     const requesterField = data.is_admin
-      ? "<label><span>Requester <b>*</b></span><select name=\"requester\" required>" + options(data.employees, requester, "requester") + "</select><small>Employee</small></label>"
-      : "<label><span>Requester</span><input value=\"" + esc(requester) + "\" disabled><small>Your employee account</small></label>";
-    return "<div class=\"cp-drawer-layer\" role=\"dialog\" aria-modal=\"true\"><button class=\"cp-drawer-backdrop\" type=\"button\" data-drawer-close aria-label=\"Close\"></button><section class=\"cp-record-drawer cp-create-drawer\"><header class=\"cp-drawer-header\"><div><p>CREATE RECORD</p><h2>" + esc(title) + "</h2><span>Complete the required information below.</span></div><button class=\"cp-drawer-close\" type=\"button\" data-drawer-close aria-label=\"Close\">&times;</button></header><form id=\"cp-request-form\" novalidate><section class=\"cp-drawer-section\"><h3>General</h3><div class=\"cp-drawer-form-grid\"><label><span>Subject <b>*</b></span><input name=\"subject\" required value=\"" + esc(row.subject) + "\"></label><label><span>Priority <b>*</b></span><select name=\"priority\" required>" + options(data.priorities, row.priority, "priority") + "</select><small>Issue Priority</small></label>" + requesterField + "<label><span>Asset</span><select name=\"asset\">" + options(data.assets, row.custom_asset, "asset") + "</select><small>Asset</small></label><label><span>Issue Type <b>*</b></span><select name=\"issue_type\" required>" + options(data.categories, row.issue_type, "issue type") + "</select><small>Issue Type</small></label><label><span>Facility Location <b>*</b></span><select name=\"facility_location\" required>" + options(data.locations, row.custom_facility_location, "facility location") + "</select><small>Facility Location</small></label></div></section><section class=\"cp-drawer-section\"><h3>Details</h3><label class=\"cp-drawer-description\"><span>Description <b>*</b></span><textarea name=\"description\" required rows=\"6\" placeholder=\"Describe what happened and when it started.\">" + esc(row.description) + "</textarea></label></section><div class=\"cp-drawer-error\" hidden></div><footer class=\"cp-drawer-footer\"><button class=\"cp-secondary\" type=\"button\" data-drawer-close>Cancel</button><button class=\"cp-primary\" type=\"submit\">" + esc(submitLabel) + "</button></footer></form></section></div>";
+      ? '<label><span>Requester <b>*</b></span><select name="requester" required>' +
+        options(data.clients, requester, "requester") +
+        '</select><small>Client</small></label>'
+      : '<label><span>Requester</span><input value="' +
+        esc(requester) +
+        '" disabled><small>Your account</small></label>';
+
+    /*
+     * For the initial render:
+     * - If editing an existing issue, show only assets belonging to its location.
+     * - If creating a new issue, show no assets until a Facility Location is selected.
+     */
+    const selectedLocation = row.custom_facility_location || "";
+
+    const matchingAssets = selectedLocation
+      ? (data.assets || []).filter(
+          asset =>
+            asset.location === selectedLocation ||
+            asset.location === "CAFM - " + selectedLocation
+        )
+      : [];
+
+    return '<div class="cp-drawer-layer" role="dialog" aria-modal="true"><button class="cp-drawer-backdrop" type="button" data-drawer-close aria-label="Close"></button><div class="cp-create-alerts" role="status" aria-live="polite" aria-atomic="false"></div><section class="cp-record-drawer cp-create-drawer"><header class="cp-drawer-header"><div><p>CREATE RECORD</p><h2>' +
+      esc(title) +
+      '</h2><span>Complete the required information below.</span></div><button class="cp-drawer-close" type="button" data-drawer-close aria-label="Close">&times;</button></header><form id="cp-request-form" novalidate><section class="cp-drawer-section"><h3>General</h3><div class="cp-drawer-form-grid"><label class="cp-field-wide"><span>Subject <b>*</b></span><input name="subject" required value="' +
+      esc(row.subject) +
+      '"></label><label><span>Priority <b>*</b></span><select name="priority" required>' +
+      options(data.priorities, row.priority, "priority") +
+      '</select><small>Issue Priority</small></label>' +
+      requesterField +
+      '<label><span>Facility Location <b>*</b></span><select name="facility_location" required>' +
+      options(data.locations, selectedLocation, "facility location") +
+      '</select><small>Facility Location</small></label>' +
+      '<label><span>Asset</span><select name="asset">' +
+      options(matchingAssets, row.custom_asset, "asset") +
+      '</select><small>Asset</small></label>' +
+      '<label><span>Issue Type <b>*</b></span><select name="issue_type" required>' +
+      options(data.categories, row.issue_type, "issue type") +
+      '</select><small>Issue Type</small></label></div></section><section class="cp-drawer-section"><h3>Details</h3><label class="cp-drawer-description"><span>Description <b>*</b></span><textarea name="description" required rows="6" placeholder="Describe what happened and when it started.">' +
+      esc(row.description) +
+      '</textarea></label></section><div class="cp-drawer-error" hidden></div><footer class="cp-drawer-footer"><button class="cp-secondary" type="button" data-drawer-close>Cancel</button><button class="cp-primary" type="submit">' +
+      esc(submitLabel) +
+      '</button></footer></form></section></div>';
   }
 
   function requestModal() {
     const row = state.selectedRequest;
+
     if (!row) return "";
-    const canChange = state.requestData.can_manage_requests !== false && row.custom_issue_status === "New" && !row.custom_work_order;
-    const present = value => value !== null && value !== undefined && value !== "";
-    const field = (label, value, badgeClass) => present(value) ? "<div class=\"cp-detail-card\"><small>" + esc(label) + "</small>" + (badgeClass ? "<span class=\"cp-table-badge " + badgeClass + "\">" + esc(value) + "</span>" : "<strong>" + esc(value) + "</strong>") + "</div>" : "";
-    const section = (title, fields) => fields.some(Boolean) ? "<section class=\"cp-drawer-section\"><h3>" + esc(title) + "</h3><div class=\"cp-detail-grid-new\">" + fields.join("") + "</div></section>" : "";
-    const actions = canChange ? "<div class=\"cp-drawer-actions\"><button type=\"button\" data-actions-toggle>Actions " + icon("down") + "</button><div data-actions-menu hidden><button class=\"cp-edit-request\" type=\"button\">Edit request</button><button class=\"cp-withdraw-request danger\" type=\"button\">Withdraw request</button></div></div>" : "";
-    const general = section("General", [field("Series", row.naming_series), field("Subject", row.subject), field("Requester", row.custom_requester || state.userName), field("Raised by (Email)", row.raised_by), field("Assigned To (Email)", row.assigned_to_email), field("Issue Status", row.custom_issue_status || "New", "status-" + statusKey(row.custom_issue_status || "New")), field("Status", row.status || "Open", "status-" + statusKey(row.status || "Open")), field("Priority", row.priority, "priority-" + statusKey(row.priority)), field("Issue Type", row.issue_type), field("Facility Location", row.custom_facility_location), field("Asset", row.custom_asset), field("Work Order", row.custom_work_order)]);
-    const details = present(row.description) ? "<section class=\"cp-drawer-section\"><h3>Details</h3><div class=\"cp-detail-card cp-detail-wide\"><small>Description</small><p>" + esc(row.description).replace(/\n/g, "<br>") + "</p></div></section>" : "";
-    const sla = section("Service Level Agreement Details", [field("Service Level Agreement", row.service_level_agreement), field("Agreement Status", row.agreement_status)]);
-    const response = section("Response Details", [field("First Responded On", row.first_responded_on), field("Pending Reason", row.custom_pending_reason), field("Rejection Reason", row.custom_rejection_reason)]);
-    const resolution = section("Resolution Details", [field("Resolution Details", row.resolution_details), field("Opening Date", row.opening_date), field("Opening Time", row.opening_time)]);
-    const reference = section("Reference", [field("Contact", row.contact), field("Company", row.company), field("Via Customer Portal", row.via_customer_portal ? "Yes" : "No")]);
-    const openFull = state.requestData.can_open_full_record ? "<button class=\"cp-primary\" type=\"button\" data-open-full-record>Open Full Record</button>" : "";
-    return "<div class=\"cp-drawer-layer\" role=\"dialog\" aria-modal=\"true\"><button class=\"cp-drawer-backdrop\" type=\"button\" data-preview-close aria-label=\"Close\"></button><section class=\"cp-record-drawer cp-view-drawer\"><header class=\"cp-drawer-header\"><div><p>Issue</p><h2>" + esc(row.subject) + "</h2><span>" + esc(row.name) + "</span></div><div class=\"cp-drawer-header-controls\">" + actions + "<button class=\"cp-drawer-close\" type=\"button\" data-preview-close aria-label=\"Close\">&times;</button></div></header>" + general + details + sla + response + resolution + reference + "<footer class=\"cp-drawer-footer cp-view-footer\"><button class=\"cp-secondary\" type=\"button\" data-preview-close>Close</button>" + openFull + "</footer></section></div>";
+
+    const canChange =
+      state.requestData.can_manage_requests !== false &&
+      row.custom_issue_status === "New" &&
+      !row.custom_work_order;
+
+    const field = detailField;
+    const section = detailSection;
+
+    const actions = canChange
+      ? '<div class="cp-drawer-actions"><button type="button" data-actions-toggle>Actions ' +
+        icon("down") +
+        '</button><div data-actions-menu hidden><button class="cp-edit-request" type="button">Edit request</button><button class="cp-withdraw-request danger" type="button">Withdraw request</button></div></div>'
+      : "";
+
+    const assignedTo = row.assigned_to_email;
+
+    const assignedField = present(assignedTo)
+      ? '<div class="cp-detail-card cp-detail-clickable' +
+        (String(assignedTo).length > 18 ? " cp-field-wide" : "") +
+        '" data-technician="' +
+        esc(assignedTo) +
+        '" role="button" tabindex="0"><small>Assigned To (Email)</small><strong>' +
+        esc(assignedTo) +
+        '</strong></div>'
+      : "";
+
+    const general = section("General", [
+      field("Series", row.naming_series),
+      field("Subject", row.subject),
+      field("Requester", row.custom_requester || state.userName),
+      field("Raised by (Email)", row.raised_by),
+      assignedField,
+      field(
+        "Issue Status",
+        row.custom_issue_status || "New",
+        "status-" + statusKey(row.custom_issue_status || "New")
+      ),
+      field(
+        "Status",
+        row.status || "Open",
+        "status-" + statusKey(row.status || "Open")
+      ),
+      field(
+        "Priority",
+        row.priority,
+        "priority-" + statusKey(row.priority)
+      ),
+      field("Issue Type", row.issue_type),
+      field("Facility Location", row.custom_facility_location),
+      field("Asset", row.custom_asset),
+      field("Work Order", row.custom_work_order)
+    ]);
+
+    const details = present(row.description)
+      ? '<section class="cp-drawer-section"><h3>Details</h3><div class="cp-detail-card cp-detail-wide"><small>Description</small><p>' +
+        esc(row.description).replace(/\n/g, "<br>") +
+        '</p></div></section>'
+      : "";
+
+    const sla = section("Service Level Agreement Details", [
+      field("Service Level Agreement", row.service_level_agreement),
+      field("Agreement Status", row.agreement_status)
+    ]);
+
+    const response = section("Response Details", [
+      field("First Responded On", row.first_responded_on),
+      field("Pending Reason", row.custom_pending_reason),
+      field("Rejection Reason", row.custom_rejection_reason)
+    ]);
+
+    const resolution = section("Resolution Details", [
+      field("Resolution Details", row.resolution_details),
+      field("Opening Date", row.opening_date),
+      field("Opening Time", row.opening_time)
+    ]);
+
+    const reference = section("Reference", [
+      field("Contact", row.contact),
+      field("Company", row.company),
+      field(
+        "Via Customer Portal",
+        row.via_customer_portal ? "Yes" : "No"
+      )
+    ]);
+
+    const openFull = state.requestData.can_open_full_record
+      ? '<button class="cp-primary" type="button" data-open-full-record>Open Full Record</button>'
+      : "";
+
+    return '<div class="cp-drawer-layer" role="dialog" aria-modal="true"><button class="cp-drawer-backdrop" type="button" data-preview-close aria-label="Close"></button><section class="cp-record-drawer cp-view-drawer"><header class="cp-drawer-header"><div><p>Issue</p><h2>' +
+      esc(row.subject) +
+      '</h2><span>' +
+      esc(row.name) +
+      '</span></div><div class="cp-drawer-header-controls">' +
+      actions +
+      '<button class="cp-drawer-close" type="button" data-preview-close aria-label="Close">&times;</button></div></header>' +
+      general +
+      details +
+      sla +
+      response +
+      resolution +
+      reference +
+      '<footer class="cp-drawer-footer cp-view-footer"><button class="cp-secondary" type="button" data-preview-close>Close</button>' +
+      openFull +
+      '</footer></section></div>';
+  }
+
+  function technicianModal() {
+    const email = state.technicianEmail;
+
+    if (!email) return "";
+
+    const info = state.technicianInfo;
+    const name = (info && (info.full_name || info.name)) || email;
+
+    let body;
+
+    if (state.technicianLoading) {
+      body = '<section class="cp-drawer-section"><p class="cp-tech-loading">Loading technician details…</p></section>';
+    } else if (!info || info.error) {
+      body =
+        '<div class="cp-drawer-error">Could not load technician details. Showing what\'s on the request instead.</div>' +
+        detailSection("Contact", [
+          detailField("Email", email)
+        ]);
+    } else {
+      body =
+        detailSection("Technician Info", [
+          detailField("Full Name", info.full_name),
+          detailField("Designation", info.designation),
+          detailField("Department", info.department)
+        ]) +
+        detailSection("Contact", [
+          detailField("Email", info.email || email),
+          detailField("Phone", info.phone || "-")
+        ]);
+    }
+
+    return '<div class="cp-drawer-layer" role="dialog" aria-modal="true"><button class="cp-drawer-backdrop" type="button" data-tech-close aria-label="Close"></button><section class="cp-record-drawer cp-view-drawer"><header class="cp-drawer-header"><div><p>Technician</p><h2>' +
+      esc(name) +
+      '</h2><span>' +
+      esc(email) +
+      '</span></div><button class="cp-drawer-close" type="button" data-tech-close aria-label="Close">&times;</button></header>' +
+      body +
+      '<footer class="cp-drawer-footer cp-view-footer"><button class="cp-secondary" type="button" data-tech-close>Close</button></footer></section></div>';
   }
 
   function render() {
-    root.innerHTML = '<div class="cp-shell' + (state.collapsed ? ' is-collapsed' : '') + '">' + sidebar() + '<main class="cp-main">' + requestContent() + '</main></div>';
+    applyTheme();
+
+    root.innerHTML =
+      '<div class="cp-shell' +
+      (state.collapsed ? ' is-collapsed' : '') +
+      '">' +
+      sidebar() +
+      '<main class="cp-main">' +
+      requestContent() +
+      '</main></div>' +
+      mobileNav();
+
     bind();
   }
 
   function bind() {
-    root.querySelectorAll("[data-section]").forEach(button => button.onclick = () => {
-      state.requestView = button.dataset.section.replace(/^request-/, "");
-      state.selectedRequest = null; state.requestForm = false;
-      loadRequests();
+    root.querySelectorAll("[data-section]").forEach(button => {
+      button.onclick = () => {
+        const nextView = button.dataset.section.replace(/^request-/, "");
+
+        if (nextView === state.requestView) return;
+
+        savePortalState();
+
+        state.requestView = nextView;
+        state.selectedRequest = null;
+        state.requestForm = false;
+        state.editingRequest = null;
+        state.technicianEmail = null;
+        state.technicianInfo = null;
+
+        loadRequests();
+      };
     });
+
     const shell = root.querySelector(".cp-shell");
     const collapseButton = root.querySelector(".cp-collapse");
     const accountWrap = root.querySelector(".cp-account-wrap");
     const accountButton = root.querySelector(".cp-account-button");
     const accountMenu = root.querySelector(".cp-account-menu");
+
     let accountOpenedFromCollapsed = false;
 
     const setSidebarCollapsed = collapsed => {
       state.collapsed = collapsed;
       shell.classList.toggle("is-collapsed", collapsed);
-      collapseButton.querySelector(".cp-collapse-icon").innerHTML = icon(collapsed ? "right" : "left");
-      collapseButton.querySelector("em").textContent = collapsed ? "Expand" : "Collapse";
-      collapseButton.title = collapsed ? "Expand sidebar" : "Collapse sidebar";
-      localStorage.setItem("cafm-client-portal-collapsed", collapsed ? "1" : "0");
+      collapseButton.querySelector(".cp-collapse-icon").innerHTML =
+        icon(collapsed ? "right" : "left");
+      collapseButton.querySelector("em").textContent =
+        collapsed ? "Expand" : "Collapse";
+      collapseButton.title =
+        collapsed ? "Expand sidebar" : "Collapse sidebar";
+
+      localStorage.setItem(
+        "cafm-client-portal-collapsed",
+        collapsed ? "1" : "0"
+      );
     };
+
     const openAccountMenu = () => {
       accountMenu.hidden = false;
       accountMenu.classList.add("is-opening");
-      requestAnimationFrame(() => requestAnimationFrame(() => accountMenu.classList.remove("is-opening")));
+
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+          accountMenu.classList.remove("is-opening")
+        )
+      );
     };
+
     const closeAccountMenu = () => {
       if (accountMenu.hidden) return;
+
       accountMenu.hidden = true;
       accountButton.setAttribute("aria-expanded", "false");
+
       if (accountOpenedFromCollapsed) {
         accountOpenedFromCollapsed = false;
         setSidebarCollapsed(true);
@@ -178,66 +784,564 @@ frappe.ready(function () {
         accountButton.setAttribute("aria-expanded", "true");
         return;
       }
+
       if (accountMenu.hidden) {
         openAccountMenu();
         accountButton.setAttribute("aria-expanded", "true");
-      } else closeAccountMenu();
+      } else {
+        closeAccountMenu();
+      }
     };
-    root.onclick = event => { if (!accountWrap.contains(event.target)) closeAccountMenu(); };
+
+    root.onclick = event => {
+      if (!accountWrap.contains(event.target)) closeAccountMenu();
+    };
+
     root.querySelector(".cp-account-about").onclick = () => {
       closeAccountMenu();
+
       frappe.msgprint({
         title: "client Portal",
-        message: "Manage your assigned facility work and track requests submitted by your account.",
+        message:
+          "Manage your assigned facility work and track requests submitted by your account.",
         indicator: "blue"
       });
     };
-    root.querySelector(".cp-account-logout").onclick = () => frappe.call({
-      method: "logout",
-      callback: response => { if (!response.exc) window.location.assign("/login"); }
-    });
+
+    root.querySelector(".cp-account-settings").onclick = () => {
+      closeAccountMenu();
+      state.settingsOpen = true;
+      render();
+    };
+
+    root.querySelector(".cp-account-logout").onclick = () =>
+      frappe.call({
+        method: "logout",
+        callback: response => {
+          if (!response.exc) window.location.assign("/login");
+        }
+      });
+
     collapseButton.onclick = () => {
       accountOpenedFromCollapsed = false;
       closeAccountMenu();
       setSidebarCollapsed(!shell.classList.contains("is-collapsed"));
     };
 
-    root.querySelectorAll(".cp-create-request, [data-create-request]").forEach(button => button.onclick = async () => { state.requestForm = true; state.editingRequest = null; await loadRequests(); });
+    root
+      .querySelectorAll(".cp-create-request, [data-create-request]")
+      .forEach(button =>
+        button.onclick = async () => {
+          savePortalState();
+
+          state.requestForm = true;
+          state.editingRequest = null;
+
+          await loadRequests();
+        }
+      );
+
     root.querySelector(".cp-refresh").onclick = loadRequests;
     root.querySelector(".cp-notifications").onclick = showNotifications;
-    root.querySelectorAll("[data-request-filter]").forEach(control => control.onchange = () => { state[control.dataset.requestFilter] = control.value; render(); });
-    const search = root.querySelector("[data-request-search]"); if (search) search.oninput = () => { const query = search.value.trim().toLowerCase(); root.querySelectorAll("[data-request-row]").forEach(row => row.hidden = Boolean(query) && !row.dataset.requestRow.includes(query)); };
-    root.querySelectorAll("[data-request]").forEach(button => button.onclick = () => { state.selectedRequest = (state.requestData.requests || []).find(row => row.name === button.dataset.request); render(); });
-    document.body.classList.toggle("cp-drawer-open", Boolean(state.requestForm || state.selectedRequest));
-    root.querySelectorAll("[data-drawer-close]").forEach(button => button.onclick = () => { state.requestForm = false; state.editingRequest = null; render(); });
-    root.querySelectorAll("[data-preview-close]").forEach(button => button.onclick = () => { state.selectedRequest = null; render(); });
-    const openFullRecord = root.querySelector("[data-open-full-record]");
-    if (openFullRecord) openFullRecord.onclick = () => { window.location.href = "/app/issue/" + encodeURIComponent(state.selectedRequest.name); };
-    const actionsToggle = root.querySelector("[data-actions-toggle]");
-    if (actionsToggle) actionsToggle.onclick = event => { event.stopPropagation(); const menu = root.querySelector("[data-actions-menu]"); menu.hidden = !menu.hidden; actionsToggle.setAttribute("aria-expanded", menu.hidden ? "false" : "true"); };
-    const edit = root.querySelector(".cp-edit-request"); if (edit) edit.onclick = () => { state.editingRequest = state.selectedRequest; state.selectedRequest = null; state.requestForm = true; render(); };
-    const withdraw = root.querySelector(".cp-withdraw-request"); if (withdraw) withdraw.onclick = withdrawRequest;
-    const requestFormElement = root.querySelector("#cp-request-form"); if (requestFormElement) requestFormElement.onsubmit = submitRequest;
 
+    root.querySelectorAll("[data-request-filter]").forEach(control =>
+      control.onchange = () => {
+        state[control.dataset.requestFilter] = control.value;
+        render();
+      }
+    );
+
+    const search = root.querySelector("[data-request-search]");
+
+    if (search) {
+      search.oninput = () => {
+        const query = search.value.trim().toLowerCase();
+
+        root.querySelectorAll("[data-request-row]").forEach(row => {
+          row.hidden =
+            Boolean(query) &&
+            !row.dataset.requestRow.includes(query);
+        });
+      };
+    }
+
+    root.querySelectorAll("[data-request]").forEach(button =>
+      button.onclick = () => {
+        savePortalState();
+
+        state.selectedRequest =
+          (state.requestData.requests || []).find(
+            row => row.name === button.dataset.request
+          );
+
+        render();
+      }
+    );
+
+    root.querySelectorAll("[data-request-card]").forEach(card => {
+      const openCard = event => {
+        if (event.target.closest(".cp-record-link")) return;
+
+        if (
+          event.type === "keydown" &&
+          event.key !== "Enter" &&
+          event.key !== " "
+        ) {
+          return;
+        }
+
+        if (event.type === "keydown") event.preventDefault();
+        savePortalState();
+
+        state.selectedRequest =
+          (state.requestData.requests || []).find(
+            row => row.name === card.dataset.requestCard
+          );
+
+        render();
+      };
+
+      card.onclick = openCard;
+      card.onkeydown = openCard;
+    });
+
+    document.body.classList.toggle(
+      "cp-drawer-open",
+      Boolean(
+        state.requestForm ||
+        state.selectedRequest ||
+        state.technicianEmail ||
+        state.settingsOpen
+      )
+    );
+
+    root.querySelectorAll("[data-drawer-close]").forEach(button =>
+      button.onclick = () => {
+        state.requestForm = false;
+        state.editingRequest = null;
+        render();
+      }
+    );
+
+    root.querySelectorAll("[data-preview-close]").forEach(button =>
+      button.onclick = () => {
+        state.selectedRequest = null;
+        render();
+      }
+    );
+
+    root.querySelectorAll("[data-technician]").forEach(card => {
+      const openTechnician = event => {
+        if (
+          event.type === "keydown" &&
+          event.key !== "Enter" &&
+          event.key !== " "
+        ) {
+          return;
+        }
+
+        if (event.type === "keydown") event.preventDefault();
+
+        openTechnicianDrawer(card.dataset.technician);
+      };
+
+      card.onclick = openTechnician;
+      card.onkeydown = openTechnician;
+    });
+
+    root.querySelectorAll("[data-tech-close]").forEach(button =>
+      button.onclick = () => {
+        state.technicianEmail = null;
+        state.technicianInfo = null;
+        render();
+      }
+    );
+
+    root.querySelectorAll("[data-settings-close]").forEach(button =>
+      button.onclick = () => {
+        state.settingsOpen = false;
+        render();
+      }
+    );
+
+    root.querySelectorAll("[data-theme-option]").forEach(button =>
+      button.onclick = () => {
+        state.theme = button.dataset.themeOption;
+        localStorage.setItem(THEME_KEY, state.theme);
+        render();
+      }
+    );
+
+    const collapsedDefaultInput =
+      root.querySelector("[data-collapsed-default]");
+
+    if (collapsedDefaultInput) {
+      collapsedDefaultInput.onchange = () =>
+        setSidebarCollapsed(collapsedDefaultInput.checked);
+    }
+
+    const defaultViewSelect =
+      root.querySelector("[data-default-view]");
+
+    if (defaultViewSelect) {
+      defaultViewSelect.onchange = () => {
+        localStorage.setItem(VIEW_KEY, defaultViewSelect.value);
+        state.requestView = defaultViewSelect.value;
+        loadRequests();
+      };
+    }
+
+    const openFullRecord =
+      root.querySelector("[data-open-full-record]");
+
+    if (openFullRecord) {
+      openFullRecord.onclick = () => {
+        window.location.href =
+          "/app/issue/" +
+          encodeURIComponent(state.selectedRequest.name);
+      };
+    }
+
+    const actionsToggle =
+      root.querySelector("[data-actions-toggle]");
+
+    if (actionsToggle) {
+      actionsToggle.onclick = event => {
+        event.stopPropagation();
+
+        const menu =
+          root.querySelector("[data-actions-menu]");
+
+        menu.hidden = !menu.hidden;
+
+        actionsToggle.setAttribute(
+          "aria-expanded",
+          menu.hidden ? "false" : "true"
+        );
+      };
+    }
+
+    const edit = root.querySelector(".cp-edit-request");
+
+    if (edit) {
+      edit.onclick = () => {
+        state.editingRequest = state.selectedRequest;
+        state.selectedRequest = null;
+        state.requestForm = true;
+        render();
+      };
+    }
+
+    const withdraw =
+      root.querySelector(".cp-withdraw-request");
+
+    if (withdraw) {
+      withdraw.onclick = withdrawRequest;
+    }
+
+    /*
+     * Request form
+     *
+     * Facility Location controls the Asset dropdown.
+     * Only assets whose Asset.location matches the selected
+     * Facility Location are shown.
+     */
+    const requestFormElement =
+      root.querySelector("#cp-request-form");
+
+    if (requestFormElement) {
+      requestFormElement.onsubmit = submitRequest;
+
+      const facilityLocationField =
+        requestFormElement.querySelector(
+          'select[name="facility_location"]'
+        );
+
+      const assetField =
+        requestFormElement.querySelector(
+          'select[name="asset"]'
+        );
+
+      if (facilityLocationField && assetField) {
+        const updateAssets = () => {
+          const selectedLocation =
+            facilityLocationField.value;
+
+          const matchingAssets = (state.requestData.assets || []).filter(
+            asset =>
+              asset.location === selectedLocation ||
+              asset.location === "CAFM - " + selectedLocation
+          );
+
+          assetField.innerHTML =
+            '<option value="">Select asset</option>' +
+            matchingAssets.map(asset =>
+              '<option value="' +
+              esc(asset.name) +
+              '">' +
+              esc(asset.name) +
+              '</option>'
+            ).join("");
+
+          const currentAsset =
+            state.editingRequest
+              ? state.editingRequest.custom_asset
+              : "";
+
+          if (
+            currentAsset &&
+            matchingAssets.some(
+              asset => asset.name === currentAsset
+            )
+          ) {
+            assetField.value = currentAsset;
+          } else {
+            assetField.value = "";
+          }
+        };
+
+        facilityLocationField.addEventListener(
+          "change",
+          updateAssets
+        );
+
+        updateAssets();
+      }
+    }
   }
 
-  async function loadRequests() { state.requestData = await call("cafm.portal.get_portal_requests"); state.userName = state.requestData.user_full_name || state.userName; render(); }
+  const showFormAlert = (container, title, message) => {
+    if (!container || container.children.length >= 3) return;
+
+    const alert = document.createElement("div");
+
+    alert.className = "cp-create-alert";
+
+    alert.innerHTML =
+      '<span aria-hidden="true">!</span><div><strong>' +
+      esc(title) +
+      "</strong><p>" +
+      esc(message) +
+      "</p></div>";
+
+    container.appendChild(alert);
+
+    setTimeout(() => {
+      alert.classList.add("is-leaving");
+
+      setTimeout(() => alert.remove(), 220);
+    }, 3000);
+  };
+
+  async function loadRequests() {
+    state.requestData =
+      await call("cafm.portal.get_portal_requests");
+
+    state.userName =
+      state.requestData.user_full_name ||
+      state.userName;
+
+    render();
+  }
+
   async function submitRequest(event) {
-    event.preventDefault(); const form = event.currentTarget; const args = Object.fromEntries(new FormData(form).entries());
-    const editing = state.editingRequest; if (editing) args.name = editing.name;
-    const result = await call(editing ? "cafm.portal.update_portal_request" : "cafm.portal.submit_portal_request", args);
-    frappe.show_alert({message: editing ? "Request updated" : "Request " + result.name + " submitted", indicator: "green"}); state.requestForm = false; state.editingRequest = null; state.requestView = "all"; await loadRequests();
-  }
-  function withdrawRequest() { frappe.confirm("Withdraw this request?", async () => { await call("cafm.portal.withdraw_portal_request", {name: state.selectedRequest.name}); state.selectedRequest = null; frappe.show_alert({message: "Request withdrawn", indicator: "green"}); await loadRequests(); }); }
-  async function showNotifications() {
-    const data = await call("cafm.mobile.get_my_mobile_notifications");
-    const rows = (data.notifications || []).map(item => '<div class="cp-notification-row"><strong>' + esc(String(item.subject || "Notification").replace(/<[^>]*>/g, "")) + '</strong><small>' + esc(item.creation) + '</small></div>').join("") || '<p>No notifications yet.</p>';
-    frappe.msgprint({title: "Notifications", message: rows});
-    const unread = (data.notifications || []).filter(item => !item.read).map(item => item.name); if (unread.length) call("cafm.mobile.mark_mobile_notifications_read", {names: unread});
+    event.preventDefault();
+
+    const form = event.currentTarget;
+
+    const missing =
+      [...form.querySelectorAll("[required]")]
+        .find(field =>
+          !String(field.value || "").trim()
+        );
+
+    if (missing) {
+      const alerts =
+        root.querySelector(".cp-create-alerts");
+
+      const labelSpan =
+        missing.closest("label")?.querySelector("span");
+
+      const fieldLabel =
+        labelSpan
+          ? labelSpan.textContent
+              .replace(/\*/g, "")
+              .trim()
+          : "This field";
+
+      showFormAlert(
+        alerts,
+        "Required information missing",
+        "Complete " +
+          fieldLabel +
+          " before creating this request."
+      );
+
+      missing.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+
+      setTimeout(() => missing.focus(), 180);
+
+      return;
+    }
+
+    const args =
+      Object.fromEntries(
+        new FormData(form).entries()
+      );
+
+    const editing = state.editingRequest;
+
+    if (editing) {
+      args.name = editing.name;
+    }
+
+    const result =
+      await call(
+        editing
+          ? "cafm.portal.update_portal_request"
+          : "cafm.portal.submit_portal_request",
+        args
+      );
+
+    frappe.show_alert({
+      message: editing
+        ? "Request updated"
+        : "Request " + result.name + " submitted",
+      indicator: "green"
+    });
+
+    state.requestForm = false;
+    state.editingRequest = null;
+    state.requestView = "all";
+
+    await loadRequests();
   }
 
-  loadRequests().catch(() => { root.innerHTML = '<div class="cp-error"><h2>Could not load the client Portal</h2><p>Please confirm that this account is an active client.</p></div>'; });
+  function withdrawRequest() {
+    frappe.confirm(
+      "Withdraw this request?",
+      async () => {
+        await call(
+          "cafm.portal.withdraw_portal_request",
+          {
+            name: state.selectedRequest.name
+          }
+        );
+
+        state.selectedRequest = null;
+
+        frappe.show_alert({
+          message: "Request withdrawn",
+          indicator: "green"
+        });
+
+        await loadRequests();
+      }
+    );
+  }
+
+  async function openTechnicianDrawer(email) {
+    savePortalState();
+
+    state.technicianEmail = email;
+    state.technicianInfo = null;
+    state.technicianLoading = true;
+
+    render();
+
+    try {
+      const info =
+        await call(
+          "cafm.portal.get_assigned_technician",
+          { email }
+        );
+
+      state.technicianInfo =
+        info || { error: true };
+    } catch (e) {
+      state.technicianInfo = {
+        error: true
+      };
+    }
+
+    state.technicianLoading = false;
+
+    render();
+  }
+
+  async function showNotifications() {
+    const data =
+      await call(
+        "cafm.mobile.get_my_mobile_notifications"
+      );
+
+    const rows =
+      (data.notifications || [])
+        .map(item =>
+          '<div class="cp-notification-row"><strong>' +
+          esc(
+            String(
+              item.subject || "Notification"
+            ).replace(/<[^>]*>/g, "")
+          ) +
+          "</strong><small>" +
+          esc(item.creation) +
+          "</small></div>"
+        )
+        .join("") ||
+      "<p>No notifications yet.</p>";
+
+    frappe.msgprint({
+      title: "Notifications",
+      message: rows
+    });
+
+    const unread =
+      (data.notifications || [])
+        .filter(item => !item.read)
+        .map(item => item.name);
+
+    if (unread.length) {
+      call(
+        "cafm.mobile.mark_mobile_notifications_read",
+        { names: unread }
+      );
+    }
+  }
+
+  const capacitorApp = window.Capacitor?.Plugins?.App;
+
+  if (capacitorApp) {
+    capacitorApp.addListener("backButton", async () => {
+      if (restorePortalState()) {
+        return;
+      }
+
+      await capacitorApp.exitApp();
+    });
+  }
+
+  loadRequests().catch(error => {
+    console.error(
+      "CLIENT PORTAL LOAD ERROR:",
+      error
+    );
+
+    root.innerHTML =
+      '<div class="cp-error"><h2>Could not load the client Portal</h2><p>' +
+      esc(
+        error?.message ||
+        error?.exc ||
+        "Unknown error"
+      ) +
+      "</p></div>";
+  });
+  
 });
+
 </script>
 <style>
 body:has(#page-client-portal){margin:0!important;padding:0!important;background:#f4f8fb;overflow-x:hidden}
@@ -301,13 +1405,174 @@ body:has(#page-client-portal) #page-client-portal,body:has(#page-client-portal) 
 .cp-header-create{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:11px 17px;border:1px solid #135f93;border-radius:11px;background:#17679d;color:#fff;font-size:13px;font-weight:800;box-shadow:0 3px 8px rgba(20,88,137,.18);cursor:pointer;transition:background .16s ease,box-shadow .16s ease,transform .16s ease}.cp-header-create:hover{background:#125882;box-shadow:0 6px 14px rgba(20,88,137,.24);transform:translateY(-1px)}.cp-header-create .cp-icon{width:17px;height:17px}
 .cp-request-toolbar{display:flex;align-items:center;gap:14px;margin-bottom:12px;padding:13px 15px;border:1px solid #dce7ef;border-radius:13px;background:#fff}.cp-request-toolbar input{flex:1;min-width:180px;height:41px;padding:9px 12px;border:1px solid #c9dce7;border-radius:9px;background:#fbfdff;color:#294b64;font-size:12px;outline:none}.cp-request-toolbar input:focus{border-color:#4d96c3;box-shadow:0 0 0 3px rgba(55,135,187,.12)}.cp-request-toolbar span{color:#56748a;font-size:12px;font-weight:800;white-space:nowrap}
 .cp-request-table-wrap{margin-top:14px;overflow:auto;border:1px solid #d7e4ec;border-radius:14px;background:#fff;box-shadow:0 4px 13px rgba(20,58,87,.04)}.cp-request-table{width:100%;min-width:980px;border-collapse:collapse;color:#34546b;font-size:12px}.cp-request-table th{padding:12px 14px;border-bottom:1px solid #d7e4ec;background:#edf7f8;color:#41647b;font-size:10px;font-weight:900;letter-spacing:.25px;text-align:left;text-transform:uppercase;white-space:nowrap}.cp-request-table td{padding:12px 14px;border-bottom:1px solid #e6edf2;vertical-align:middle}.cp-request-table tbody tr:last-child td{border-bottom:0}.cp-request-table tbody tr:hover{background:#f8fbfd}.cp-record-link{padding:0;border:0;background:transparent;color:#14699f;text-align:left;font:inherit;font-weight:800;cursor:pointer}.cp-record-link:hover{text-decoration:underline}.cp-table-badge{display:inline-flex;align-items:center;min-height:24px;padding:4px 8px;border-radius:99px;background:#edf3f7;color:#3f5d75;font-size:10px;font-weight:800;white-space:nowrap}.cp-table-badge.status-new,.cp-table-badge.status-assigned{background:#e5f1ff;color:#135f9b}.cp-table-badge.status-in_progress,.cp-table-badge.priority-high{background:#fff2de;color:#9a5208}.cp-table-badge.status-resolved,.cp-table-badge.status-closed,.cp-table-badge.priority-low{background:#e6f8ee;color:#1d7442}.cp-table-badge.priority-critical{background:#ffe5e5;color:#ba1f1f}.cp-table-badge.priority-medium{background:#eee9ff;color:#6546a7}
-@media (max-width:760px){.cp-main-header{flex-wrap:wrap}.cp-main-header>div{flex-basis:100%}.cp-header-create{flex:1}.cp-request-toolbar{align-items:stretch;flex-direction:column}.cp-request-toolbar span{align-self:flex-end}.cp-request-table-wrap{border-radius:11px}}
+.cp-request-cards{display:none}
+.cp-request-mcard{display:grid;gap:6px;padding:11px 13px;border:1px solid #d7e4ec;border-radius:13px;background:#fff;box-shadow:0 3px 8px rgba(20,58,87,.04);cursor:pointer;transition:background .12s ease,box-shadow .12s ease,transform .12s ease}
+.cp-request-mcard:active{background:#f2f7fa;box-shadow:0 1px 4px rgba(20,58,87,.06);transform:scale(.99)}
+.cp-request-mcard:focus-visible{outline:2px solid #4d96c3;outline-offset:2px}
+.cp-request-mcard .cp-record-link{pointer-events:none}
+.cp-request-mcard-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cp-request-mcard-top .cp-record-link{font-size:13px}
+.cp-request-mcard-top .cp-table-badge{min-height:19px;padding:2px 7px;font-size:9px}
+.cp-request-mcard-subject{margin:0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;color:#294b64;font-size:12.5px;line-height:1.4;word-break:break-word}
+.cp-request-mcard-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+.cp-request-mcard-meta div{min-width:0}
+.cp-request-mcard-meta small{display:block;margin-bottom:2px;color:#7a91a2;font-size:8.5px;font-weight:900;letter-spacing:.3px;text-transform:uppercase}
+.cp-request-mcard-meta span{display:block;overflow:hidden;color:#45647a;font-size:11.5px;text-overflow:ellipsis;white-space:nowrap}
+.cp-request-mcard-meta .cp-table-badge{min-height:19px;padding:2px 7px;font-size:9px}
+@media (max-width:760px){.cp-main-header{flex-wrap:wrap}.cp-main-header>div{flex-basis:100%}.cp-header-create{flex:1}.cp-request-toolbar{align-items:stretch;flex-direction:column}.cp-request-toolbar span{align-self:flex-end}.cp-request-table-wrap{display:none}.cp-request-cards{display:grid;gap:8px}}
 /* CAFM-style create, edit, and view drawers */
 body.cp-drawer-open{overflow:hidden!important}
 .cp-drawer-layer{position:fixed;inset:0;z-index:1200}.cp-drawer-backdrop{position:absolute;inset:0;width:100%;height:100%;border:0;background:rgba(24,52,72,.42);backdrop-filter:blur(2px);cursor:default}.cp-record-drawer{position:absolute;inset:0 0 0 auto;width:min(560px,94vw);height:100%;overflow-y:auto;padding:26px;background:#f4f8fb;box-shadow:-18px 0 44px rgba(16,45,66,.22);animation:cp-drawer-in .2s ease both}@keyframes cp-drawer-in{from{opacity:.7;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
 .cp-drawer-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding-bottom:18px;border-bottom:1px solid #cfdfe9}.cp-drawer-header>div:first-child{min-width:0}.cp-drawer-header p{margin:0;color:#397594;font-size:10px;font-weight:800;letter-spacing:.75px;text-transform:uppercase}.cp-drawer-header h2{overflow:hidden;margin:6px 0;color:#173650;font-size:23px;line-height:1.25;text-overflow:ellipsis}.cp-drawer-header>div:first-child>span{display:block;margin-top:0;color:#668095;font-size:12px}.cp-drawer-header-controls{display:flex;align-items:flex-start;gap:10px}.cp-drawer-close{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;padding:0;border:1px solid #a9cce1;border-radius:10px;background:#fff;color:#155f8f;font-size:23px;line-height:1;cursor:pointer}.cp-drawer-close:hover{background:#eaf5fb}
 .cp-drawer-section{margin-top:20px}.cp-drawer-section>h3{margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid #d8e5ed;color:#244c68;font-size:13px;font-weight:800}.cp-drawer-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 14px}.cp-drawer-form-grid label,.cp-drawer-description{display:grid;align-content:start;gap:7px;min-width:0;color:#3d6078;font-size:11px;font-weight:800}.cp-drawer-form-grid label span b,.cp-drawer-description span b{margin-left:3px;color:#c63f3f}.cp-drawer-form-grid input,.cp-drawer-form-grid select,.cp-drawer-description textarea{width:100%;min-height:41px;padding:9px 11px;border:1px solid #c9dce7;border-radius:9px;background:#fff;color:#294b64;font:inherit;outline:none}.cp-drawer-form-grid input:focus,.cp-drawer-form-grid select:focus,.cp-drawer-description textarea:focus{border-color:#4d96c3;box-shadow:0 0 0 3px rgba(55,135,187,.12)}.cp-drawer-form-grid input:disabled{background:#eef4f7;color:#627d90}.cp-drawer-form-grid small{color:#7a91a2;font-size:9px;font-weight:500}.cp-drawer-description textarea{min-height:116px;resize:vertical}.cp-drawer-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;padding-top:18px;border-top:1px solid #cfdfe9}.cp-drawer-error{margin-top:16px;padding:11px;border-radius:9px;background:#ffe7e7;color:#a82727;font-size:12px}
-.cp-detail-grid-new{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cp-detail-card{min-width:0;min-height:80px;padding:16px;border:1px solid #d2e1ea;border-radius:13px;background:#fff}.cp-detail-card small{display:block;margin-bottom:9px;color:#66849a;font-size:9px;font-weight:900;letter-spacing:.35px;text-transform:uppercase}.cp-detail-card strong{display:block;overflow:hidden;color:#173f5c;font-size:13px;text-overflow:ellipsis;white-space:nowrap}.cp-detail-card p{margin:0;color:#45647a;font-size:13px;line-height:1.6}.cp-detail-wide{min-height:80px}.cp-drawer-actions{position:relative}.cp-drawer-actions>button{display:flex;align-items:center;gap:7px;min-height:46px;padding:10px 14px;border:1px solid #9ec5dc;border-radius:11px;background:#eaf5fb;color:#155f8f;font-size:13px;font-weight:800;cursor:pointer}.cp-drawer-actions .cp-icon{width:15px;height:15px}.cp-drawer-actions>div{position:absolute;top:calc(100% + 6px);right:0;z-index:4;display:grid;min-width:170px;padding:6px;border:1px solid #c7dce8;border-radius:10px;background:#fff;box-shadow:0 12px 28px rgba(20,58,87,.18)}.cp-drawer-actions>div[hidden]{display:none}.cp-drawer-actions>div button{padding:9px 10px;border:0;border-radius:7px;background:transparent;color:#315a76;text-align:left;font-size:12px;cursor:pointer}.cp-drawer-actions>div button:hover{background:#edf6fb}.cp-drawer-actions>div button.danger{color:#b32c34}.cp-drawer-actions>div button.danger:hover{background:#fff0f0}
-@media (max-width:760px){.cp-record-drawer{width:100%;padding:19px}.cp-drawer-form-grid,.cp-detail-grid-new{grid-template-columns:1fr}.cp-drawer-header h2{font-size:23px}.cp-drawer-actions>button{padding:10px}.cp-drawer-actions>button .cp-icon{display:none}}
+.cp-create-alerts{position:fixed;top:78px;right:calc(min(560px,94vw) + 18px);z-index:1250;display:flex;flex-direction:column;gap:9px;width:min(330px,calc(100vw - min(560px,94vw) - 54px));pointer-events:none}
+.cp-create-alert{box-sizing:border-box;display:flex;align-items:flex-start;gap:11px;width:100%;padding:13px 14px;border:1px solid #efb1bb;border-radius:11px;background:#fff1f3;color:#94243a;box-shadow:0 12px 28px rgba(108,28,43,.18);animation:cpCreateAlertIn .22s ease both}
+.cp-create-alert>span{display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;border-radius:50%;background:#d43f5b;color:#fff;font-size:14px;font-weight:900}
+.cp-create-alert strong{display:block;margin:1px 0 3px;color:#842038;font-size:12px}
+.cp-create-alert p{margin:0;color:#a13e52;font-size:11px;line-height:1.4}
+.cp-create-alert.is-leaving{animation:cpCreateAlertOut .22s ease both}
+@keyframes cpCreateAlertIn{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
+@keyframes cpCreateAlertOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(28px)}}
+@media (max-width:940px){.cp-create-alerts{top:70px;right:calc(min(560px,94vw) + 10px);width:min(280px,calc(100vw - min(560px,94vw) - 26px))}}
+@media (max-width:760px){.cp-create-alerts{top:calc(14px + env(safe-area-inset-top,0px));right:14px;left:14px;width:auto}}
+.cp-detail-grid-new{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cp-detail-card{min-width:0;min-height:80px;padding:16px;border:1px solid #d2e1ea;border-radius:13px;background:#fff}.cp-detail-card small{display:block;margin-bottom:9px;color:#66849a;font-size:9px;font-weight:900;letter-spacing:.35px;text-transform:uppercase}.cp-detail-card strong{display:block;overflow:hidden;color:#173f5c;font-size:13px;text-overflow:ellipsis;white-space:nowrap}.cp-detail-card p{margin:0;color:#45647a;font-size:13px;line-height:1.6}.cp-detail-wide{min-height:80px}.cp-detail-card.cp-detail-clickable{position:relative;padding-right:34px;cursor:pointer;transition:border-color .14s ease,box-shadow .14s ease,transform .14s ease}.cp-detail-card.cp-detail-clickable::after{content:"";position:absolute;top:50%;right:14px;width:7px;height:7px;margin-top:-5px;border-right:2px solid #7fa4bc;border-bottom:2px solid #7fa4bc;transform:rotate(-45deg)}.cp-detail-card.cp-detail-clickable strong{color:#14699f}.cp-detail-card.cp-detail-clickable:hover{border-color:#8eb9d7;box-shadow:0 4px 10px rgba(20,58,87,.08)}.cp-detail-card.cp-detail-clickable:active{transform:scale(.99)}.cp-detail-card.cp-detail-clickable:focus-visible{outline:2px solid #4d96c3;outline-offset:2px}.cp-tech-loading{margin:0;color:#66849a;font-size:12px}.cp-drawer-actions{position:relative}.cp-drawer-actions>button{display:flex;align-items:center;gap:7px;min-height:46px;padding:10px 14px;border:1px solid #9ec5dc;border-radius:11px;background:#eaf5fb;color:#155f8f;font-size:13px;font-weight:800;cursor:pointer}.cp-drawer-actions .cp-icon{width:15px;height:15px}.cp-drawer-actions>div{position:absolute;top:calc(100% + 6px);right:0;z-index:4;display:grid;min-width:170px;padding:6px;border:1px solid #c7dce8;border-radius:10px;background:#fff;box-shadow:0 12px 28px rgba(20,58,87,.18)}.cp-drawer-actions>div[hidden]{display:none}.cp-drawer-actions>div button{padding:9px 10px;border:0;border-radius:7px;background:transparent;color:#315a76;text-align:left;font-size:12px;cursor:pointer}.cp-drawer-actions>div button:hover{background:#edf6fb}.cp-drawer-actions>div button.danger{color:#b32c34}.cp-drawer-actions>div button.danger:hover{background:#fff0f0}
+/* Settings drawer */
+.cp-setting-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;border:1px solid #d2e1ea;border-radius:13px;background:#fff}.cp-setting-row+.cp-setting-row{margin-top:10px}.cp-setting-row>div:first-child{min-width:0}.cp-setting-row strong{display:block;color:#173f5c;font-size:13px}.cp-setting-row small{display:block;margin-top:3px;color:#66849a;font-size:11px;line-height:1.4}.cp-setting-row select{min-height:38px;padding:6px 10px;border:1px solid #c9dce7;border-radius:8px;background:#fff;color:#294b64;font:inherit;outline:none;cursor:pointer}
+.cp-seg{display:inline-flex;flex:0 0 auto;padding:3px;border:1px solid #d2e1ea;border-radius:10px;background:#eef4f8;gap:2px}.cp-seg-btn{display:flex;align-items:center;gap:5px;padding:7px 12px;border:0;border-radius:7px;background:transparent;color:#3f627f;font-size:11.5px;font-weight:800;cursor:pointer;transition:background .15s ease,color .15s ease}.cp-seg-btn .cp-icon{width:14px;height:14px}.cp-seg-btn.active{background:#14699f;color:#fff}.cp-seg-btn:hover:not(.active){background:#e1edf4}
+.cp-switch{position:relative;display:inline-block;flex:0 0 auto;width:42px;height:24px}.cp-switch input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}.cp-switch span{position:absolute;inset:0;border-radius:99px;background:#c9dce7;transition:background .15s ease}.cp-switch span::before{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s ease}.cp-switch input:checked+span{background:#14699f}.cp-switch input:checked+span::before{transform:translateX(18px)}
+@media (max-width:760px){.cp-record-drawer{width:100%;padding:16px 16px 0}.cp-drawer-header{padding-bottom:14px}.cp-drawer-form-grid,.cp-detail-grid-new{grid-template-columns:1fr 1fr}.cp-drawer-form-grid{gap:12px 10px}.cp-detail-grid-new{gap:10px}.cp-drawer-form-grid label.cp-field-wide,.cp-detail-card.cp-field-wide{grid-column:1/-1}.cp-drawer-section{margin-top:16px}.cp-drawer-section>h3{margin-bottom:10px}.cp-drawer-header h2{font-size:20px}.cp-drawer-actions>button{padding:10px}.cp-drawer-actions>button .cp-icon{display:none}.cp-detail-card{padding:12px;min-height:auto}.cp-detail-card small{margin-bottom:5px}.cp-drawer-footer{position:sticky;left:0;right:0;bottom:0;flex-direction:column;gap:8px;margin:20px -16px 0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:#f4f8fb;border-top:1px solid #cfdfe9}.cp-drawer-footer button{width:100%}.cp-setting-row{flex-wrap:wrap}.cp-setting-row>div:first-child{flex:1 1 100%}.cp-setting-row .cp-seg,.cp-setting-row select{width:100%}.cp-seg-btn{flex:1;justify-content:center}}
+
+/* Mobile bottom navigation */
+.cp-mobile-nav{position:fixed;left:0;right:0;bottom:0;z-index:900;display:none;align-items:center;justify-content:space-around;gap:2px;padding:5px 6px calc(5px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,#103e6a,#0b3156);box-shadow:0 -6px 18px rgba(10,39,61,.28)}
+.cp-mobile-nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;flex:1;min-width:0;padding:4px 2px;border:0;border-radius:10px;background:transparent;color:#a9d5f0;cursor:pointer;transition:background .18s ease,color .18s ease,transform .18s ease}
+.cp-mobile-nav-item .cp-nav-icon{display:grid;place-items:center;width:20px;height:20px;flex:0 0 20px;color:inherit;transition:transform .18s ease}
+.cp-mobile-nav-item .cp-nav-icon .cp-icon{display:block;width:20px;height:20px;margin:0}
+.cp-mobile-nav-item em{font-style:normal;font-size:9.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cp-mobile-nav-item.active{background:rgba(255,255,255,.12);color:#fff;transform:translateY(-2px)}
+.cp-mobile-nav-item.active .cp-nav-icon{transform:scale(1.08)}
+.cp-mobile-nav-item:active{background:rgba(255,255,255,.18)}
+.cp-mobile-fab{display:flex;flex:0 0 auto;align-items:center;justify-content:center;width:52px;height:52px;margin:0 6px;border:4px solid #0b3156;border-radius:50%;background:linear-gradient(155deg,#3aa9ec,#1367a3);color:#fff;box-shadow:0 10px 22px rgba(9,67,108,.45);cursor:pointer;transform:translateY(-14px);transition:transform .15s ease,box-shadow .15s ease,filter .15s ease}
+.cp-mobile-fab .cp-nav-icon{display:grid;place-items:center;width:100%;height:100%}
+.cp-mobile-fab .cp-icon{display:block;width:24px;height:24px;stroke-width:2.3}
+.cp-mobile-fab:hover{filter:brightness(1.06)}
+.cp-mobile-fab:active{transform:translateY(-14px) scale(.93);box-shadow:0 6px 14px rgba(9,67,108,.45)}
+
+@media (max-width:760px){
+  .cp-mobile-nav{display:flex}
+  .cp-sidebar .cp-nav-group,.cp-sidebar .cp-collapse,.cp-sidebar .cp-note{display:none!important}
+  .cp-sidebar,.cp-shell.is-collapsed .cp-sidebar{position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:auto!important;inset:auto!important;z-index:40!important;display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between;gap:10px;width:100%!important;max-width:100%!important;height:auto!important;min-height:0!important;max-height:64px!important;padding:calc(10px + env(safe-area-inset-top,0px)) 14px 10px!important;box-sizing:border-box;overflow:visible}
+  .cp-brand{flex:1;min-width:0;margin:0}
+  .cp-brand>span{flex:0 0 32px;width:32px;height:32px;border-radius:9px}
+  .cp-brand>span .cp-icon{width:19px;height:19px}
+  .cp-brand>div{display:flex;align-items:baseline;gap:5px;min-width:0}
+  .cp-brand strong{overflow:hidden;font-size:15px;letter-spacing:.4px;white-space:nowrap;text-overflow:ellipsis}
+  .cp-brand strong::after{content:" Client Portal";color:#9dcdea;font-size:12px;font-weight:700;letter-spacing:.2px}
+  .cp-brand small{display:none}
+  .cp-account-wrap{flex:0 0 auto;margin:0}
+  .cp-account-button{gap:0;padding:2px}
+  .cp-profile{min-height:0;margin:0;padding:0;background:transparent}
+  .cp-profile>span{flex:0 0 36px;width:36px;height:36px}
+  .cp-profile>div,.cp-account-button>b{display:none}
+  .cp-account-menu{top:calc(100% + 10px);left:auto;right:0;width:200px}
+  .cp-header-create{display:none}
+  .cp-main{padding:calc(64px + env(safe-area-inset-top,0px)) 14px 100px!important}
+  .cp-main-header{gap:10px;margin-bottom:18px}
+  .cp-main-header h1{font-size:21px}
+  .cp-main-header p{font-size:9px}
+  .cp-refresh,.cp-notifications{min-height:40px}
+  .cp-notifications{width:40px}
+  .cp-request-toolbar{padding:11px 12px}
+  .cp-request-toolbar input{height:38px;font-size:12px}
+  .cp-request-table-wrap{margin-top:11px}
+  .cp-request-table{min-width:720px;font-size:11px}
+  .cp-request-table th,.cp-request-table td{padding:10px 11px}
+  .cp-table-badge{min-height:21px;padding:3px 7px;font-size:9.5px}
+}
+
+@media (max-width:480px){
+  .cp-main{padding:calc(64px + env(safe-area-inset-top,0px)) 10px 88px!important}
+  .cp-main-header h1{font-size:19px}
+  .cp-header-create span{display:none}
+  .cp-header-create{width:40px;padding:0}
+  .cp-refresh span{display:none}
+  .cp-refresh{width:40px;padding:0}
+  .cp-request-table{min-width:620px;font-size:10.5px}
+  .cp-request-table th,.cp-request-table td{padding:8px 9px}
+  .cp-drawer-header h2{font-size:19px}
+  .cp-detail-card{padding:12px}
+  .cp-mobile-nav-item em{font-size:8.7px}
+}
+
+/* Dark theme (scoped to the portal root; sidebar/account menu are already dark navy in both themes) */
+body:has(#cafm-client-portal[data-theme="dark"]){background:#0f1b28}
+#cafm-client-portal[data-theme="dark"]{background:#0f1b28;color:#dceaf5}
+#cafm-client-portal[data-theme="dark"] .cp-main{background:#0f1b28}
+#cafm-client-portal[data-theme="dark"] .cp-main-header p{color:#7fa6c2}
+#cafm-client-portal[data-theme="dark"] .cp-main-header h1{color:#eaf3fb}
+#cafm-client-portal[data-theme="dark"] .cp-refresh,#cafm-client-portal[data-theme="dark"] .cp-notifications{background:#16283a;border-color:#2c4b62;color:#bcdcf2}
+#cafm-client-portal[data-theme="dark"] .cp-refresh:hover,#cafm-client-portal[data-theme="dark"] .cp-notifications:hover{background:#1c3348;border-color:#3a688c}
+#cafm-client-portal[data-theme="dark"] .cp-request-toolbar{background:#16283a;border-color:#274357}
+#cafm-client-portal[data-theme="dark"] .cp-request-toolbar input{background:#0f2131;border-color:#2c4b62;color:#dceaf5}
+#cafm-client-portal[data-theme="dark"] .cp-request-toolbar span{color:#8fadc4}
+#cafm-client-portal[data-theme="dark"] .cp-request-table-wrap{background:#16283a;border-color:#274357;box-shadow:none}
+#cafm-client-portal[data-theme="dark"] .cp-request-table{color:#c3d7e6}
+#cafm-client-portal[data-theme="dark"] .cp-request-table th{background:#1c3348;border-color:#274357;color:#8fadc4}
+#cafm-client-portal[data-theme="dark"] .cp-request-table td{border-color:#223a4d}
+#cafm-client-portal[data-theme="dark"] .cp-request-table tbody tr:hover{background:#1a2e40}
+#cafm-client-portal[data-theme="dark"] .cp-record-link{color:#6cbcf2}
+#cafm-client-portal[data-theme="dark"] .cp-table-badge{background:#21384a;color:#b9d3e6}
+#cafm-client-portal[data-theme="dark"] .cp-table-badge.status-new,#cafm-client-portal[data-theme="dark"] .cp-table-badge.status-assigned{background:#16324a;color:#7cc2f2}
+#cafm-client-portal[data-theme="dark"] .cp-table-badge.status-in_progress,#cafm-client-portal[data-theme="dark"] .cp-table-badge.priority-high{background:#3a2c12;color:#ffbf6e}
+#cafm-client-portal[data-theme="dark"] .cp-table-badge.status-resolved,#cafm-client-portal[data-theme="dark"] .cp-table-badge.status-closed,#cafm-client-portal[data-theme="dark"] .cp-table-badge.priority-low{background:#103524;color:#6fdba0}
+#cafm-client-portal[data-theme="dark"] .cp-table-badge.priority-critical{background:#3a1414;color:#ff9a9a}
+#cafm-client-portal[data-theme="dark"] .cp-table-badge.priority-medium{background:#241c3a;color:#c3aef0}
+#cafm-client-portal[data-theme="dark"] .cp-request-mcard{background:#16283a;border-color:#274357;box-shadow:none}
+#cafm-client-portal[data-theme="dark"] .cp-request-mcard:active{background:#1a2e40}
+#cafm-client-portal[data-theme="dark"] .cp-request-mcard-subject{color:#c3d7e6}
+#cafm-client-portal[data-theme="dark"] .cp-request-mcard-meta small{color:#7992a8}
+#cafm-client-portal[data-theme="dark"] .cp-request-mcard-meta span{color:#a9c2d4}
+#cafm-client-portal[data-theme="dark"] .cp-empty,#cafm-client-portal[data-theme="dark"] .cp-loading,#cafm-client-portal[data-theme="dark"] .cp-error{background:#16283a;border-color:#274357;color:#8fadc4}
+#cafm-client-portal[data-theme="dark"] .cp-empty h3,#cafm-client-portal[data-theme="dark"] .cp-error h2{color:#dceaf5}
+#cafm-client-portal[data-theme="dark"] .cp-record-drawer{background:#101c2a;box-shadow:-18px 0 44px rgba(0,0,0,.4)}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-header{border-color:#274357}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-header p{color:#7fa6c2}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-header h2{color:#eaf3fb}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-header>div:first-child>span{color:#8fadc4}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-close{background:#16283a;border-color:#2c4b62;color:#bcdcf2}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-close:hover{background:#1c3348}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-section>h3{border-color:#223a4d;color:#c3d7e6}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-form-grid label,#cafm-client-portal[data-theme="dark"] .cp-drawer-description{color:#9fb8cc}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-form-grid input,#cafm-client-portal[data-theme="dark"] .cp-drawer-form-grid select,#cafm-client-portal[data-theme="dark"] .cp-drawer-description textarea{background:#0f2131;border-color:#2c4b62;color:#dceaf5}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-form-grid input:disabled{background:#182c3d;color:#7992a8}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-form-grid small{color:#7992a8}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-footer{border-color:#274357;background:#101c2a}
+#cafm-client-portal[data-theme="dark"] .cp-secondary{background:#16283a;border-color:#2c4b62;color:#bcdcf2}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-error{background:#3a1414;color:#ff9a9a}
+#cafm-client-portal[data-theme="dark"] .cp-detail-card{background:#16283a;border-color:#274357}
+#cafm-client-portal[data-theme="dark"] .cp-detail-card small{color:#7992a8}
+#cafm-client-portal[data-theme="dark"] .cp-detail-card strong{color:#dceaf5}
+#cafm-client-portal[data-theme="dark"] .cp-detail-card p{color:#a9c2d4}
+#cafm-client-portal[data-theme="dark"] .cp-detail-card.cp-detail-clickable::after{border-color:#7992a8}
+#cafm-client-portal[data-theme="dark"] .cp-detail-card.cp-detail-clickable strong{color:#6cbcf2}
+#cafm-client-portal[data-theme="dark"] .cp-detail-card.cp-detail-clickable:hover{border-color:#3a688c}
+#cafm-client-portal[data-theme="dark"] .cp-tech-loading{color:#8fadc4}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-actions>button{background:#16283a;border-color:#2c4b62;color:#7cc2f2}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-actions>div{background:#16283a;border-color:#274357;box-shadow:0 12px 28px rgba(0,0,0,.4)}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-actions>div button{color:#c3d7e6}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-actions>div button:hover{background:#1c3348}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-actions>div button.danger{color:#ff9a9a}
+#cafm-client-portal[data-theme="dark"] .cp-drawer-actions>div button.danger:hover{background:#3a1414}
+#cafm-client-portal[data-theme="dark"] .cp-setting-row{background:#16283a;border-color:#274357}
+#cafm-client-portal[data-theme="dark"] .cp-setting-row strong{color:#dceaf5}
+#cafm-client-portal[data-theme="dark"] .cp-setting-row small{color:#8fadc4}
+#cafm-client-portal[data-theme="dark"] .cp-setting-row select{background:#0f2131;border-color:#2c4b62;color:#dceaf5}
+#cafm-client-portal[data-theme="dark"] .cp-seg{background:#0f2131;border-color:#274357}
+#cafm-client-portal[data-theme="dark"] .cp-seg-btn{color:#9fb8cc}
+#cafm-client-portal[data-theme="dark"] .cp-seg-btn.active{background:#2f7fb8;color:#fff}
+#cafm-client-portal[data-theme="dark"] .cp-seg-btn:hover:not(.active){background:#1c3348}
+#cafm-client-portal[data-theme="dark"] .cp-switch span{background:#2c4b62}
+#cafm-client-portal[data-theme="dark"] .cp-create-alert{background:#3a1420;border-color:#6b2438;color:#ffb3c2}
+#cafm-client-portal[data-theme="dark"] .cp-create-alert strong{color:#ffd0da}
+#cafm-client-portal[data-theme="dark"] .cp-create-alert p{color:#e8a6b4}
 </style>
 {% endblock %}
