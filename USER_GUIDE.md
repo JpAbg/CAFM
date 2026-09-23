@@ -1,247 +1,297 @@
 # CAFM User Guide
-
-This guide explains how facility staff use CAFM day to day. It is for facility managers, coordinators, technicians, requesters, and vendors.
-
-For installation, updates, and technical requirements, see [README.md](README.md).
-
+This guide explains how facility staff use CAFM day to day. It is for
+facility managers, coordinators, technicians, requesters, and vendors.
+For installation, updates, and technical requirements, see
+\(README.md\)(README.md).
 ## Start here
-
-Facility Managers and Facility Coordinators start from the **Welcome Workspace** and select **Open CAFM Operations**, or open `/cafm` directly. This full-page app view brings maintenance, assets, vendors, SLA records, utilities, and analytics into one interface. The standard **Facilities** workspace remains available when a native ERPNext/Frappe view is needed.
-
-Use the search bar to find an Asset, Facility Location, Maintenance Request, or Facility Work Order by name.
-
+Facility Managers and Facility Coordinators start from the **Welcome
+Workspace** and select **Open CAFM Operations**, or open
+`/cafm` directly. This full-page app view brings maintenance, assets,
+vendors, SLA records, utilities, and analytics into one interface. The
+standard **Facilities** workspace remains available when a
+native ERPNext/Frappe view is needed.
+Use the search bar to find an Asset, Facility Location, Maintenance
+Request, or Facility Work Order by name.
 ## CAFM Operations app view
-
-The `/cafm` page is the main operational interface for Facility Managers and Coordinators. Its fixed sidebar groups records into:
-
-- **Maintenance:** Requests, Work Orders, Preventive Maintenance, and Inspections.
+The `/cafm` page is the main operational interface for Facility
+Managers and Coordinators. Its fixed sidebar groups records into:
+- **Maintenance:** Requests, Work Orders, Preventive
+Maintenance, and Inspections.
 - **Assets:** Assets, Locations, and Categories.
-- **Vendors & SLA:** Providers, Contracts, Quotations, and SLA Policies.
+- **Vendors & SLA:** Providers, Contracts, Quotations, and SLA
+Policies.
 - **Utilities:** Meters, Readings, Bills, and Budgets.
-- **Analytics:** the CAFM dashboards displayed inside the app view.
-
-Select **Collapse** to reduce the sidebar to icons. Select the account area while the sidebar is collapsed to open it temporarily. The **Open Facilities Workspace** control remains available at the bottom of the sidebar.
-
+- **Analytics:** the CAFM dashboards displayed inside the app
+view.
+Select **Collapse** to reduce the sidebar to icons. Select the
+account area while the sidebar is collapsed to open it temporarily. The
+**Open Facilities Workspace** control remains available at the
+bottom of the sidebar.
 Each record category supports three views without leaving `/cafm`:
-
-- **Table** for a compact list of records and their important fields.
-- **Dashboard** for category totals and grouped operational information.
-- **Kanban** for records grouped by their relevant status or category.
-
-Use the search field to filter the records currently displayed. Select a record to open its in-page details window. The separate **Open full record** button opens the native Frappe form when its complete functionality is needed.
-
+- **Table** for a compact list of records and their important
+fields.
+- **Dashboard** for category totals and grouped operational
+information.
+- **Kanban** for records grouped by their relevant status or
+category.
+Use the search field to filter the records currently displayed. Select a
+record to open its in-page details window. The separate **Open full
+record** button opens the native Frappe form when its complete
+functionality is needed.
 ### Creating records from CAFM Operations
-
-Select **Create _Record Type_** at the top of a category. The in-page form follows the corresponding native DocType layout, including sections, columns, required fields, conditional fields, searchable linked records, Select menus, and editable child tables where applicable.
-
-The normal Frappe permissions, linked-record validation, and document validation still apply. A field or Create button that the signed-in user is not allowed to use is not made available by the app view.
-
+Select **Create _Record Type_** at the top of a
+category. The in-page form follows the corresponding native DocType
+layout, including sections, columns, required fields, conditional
+fields, searchable linked records, Select menus, and editable child
+tables where applicable.
+The normal Frappe permissions, linked-record validation, and document
+validation still apply. A field or Create button that the signed-in user
+is not allowed to use is not made available by the app view.
 ### Record actions
-
-The **Actions** menu appears at the top of an in-page record window when at least one permitted action applies to that record and its current state. Examples include:
-
-- Assets: show or download the QR code, create a maintenance request, view open work, and view maintenance history.
-- Requests: create a Work Order, or open the linked Work Order when one already exists.
-- Work Orders: create an inspection, issue materials, request or view vendor quotations, and view matching service contracts.
-- Preventive Maintenance Plans: generate the next Work Order when the plan is active and due.
+The **Actions** menu appears at the top of an in-page record
+window when at least one permitted action applies to that record and its
+current state. Examples include:
+- Assets: show or download the QR code, create a maintenance request,
+view open work, and view maintenance history.
+- Requests: create a Work Order, or open the linked Work Order when one
+already exists.
+- Work Orders: create an inspection, issue materials, request or view
+vendor quotations, and view matching service contracts.
+- Preventive Maintenance Plans: generate the next Work Order when the
+plan is active and due.
 - Inspections: open the linked Work Order.
-- Received Vendor Quotations: select the quotation when the signed-in user has permission.
+- Received Vendor Quotations: select the quotation when the signed-in
+user has permission.
 - Printable records: print or download a PDF.
-
-Actions that do not apply are hidden. For example, **Issue Materials** requires material rows and an eligible Work Order status, while **Select Quotation** requires a quotation in Received status.
-
+Actions that do not apply are hidden. For example, **Issue
+Materials** requires material rows and an eligible Work Order
+status, while **Select Quotation** requires a quotation in
+Received status.
 ## Roles
-
 | Role | Main responsibility |
 | --- | --- |
-| Facility Manager | Full CAFM oversight: facility setup, assets, teams, suppliers, contracts, SLAs, utilities, costs, escalations, and reports. |
-| Facility Coordinator | Runs daily maintenance operations: requests, work orders, technician assignments, preventive maintenance, inspections, and operational SLA follow-up. |
-| Technician | Views assigned work and records progress, time, materials, and resolutions. |
-| Requester / Employee | Raises maintenance requests and follows their own requests. |
-| Vendor | Views its own provider profile and contract, completes its own quotations, and updates only externally assigned work orders. |
-
-**Assigning Manager and Coordinator roles:** Open the person's **User** record, add **Facility Manager** or **Facility Coordinator** in the Roles table, then save. These supervisory roles are intentionally assigned manually; ordinary new Employee accounts only receive Employee and Requester / Employee, plus Technician when applicable.
-
-A Facility Coordinator can work on maintenance operations but cannot configure sites, buildings, rooms, assets, vendors, quotations, service contracts, utility records, utility dashboards, or maintenance-cost reports. A Facility Manager has access to those management functions.
-
-If an action is not available, ask the Facility Manager to check your role and permissions.
-
+| Facility Manager | Full CAFM oversight: facility setup, assets,
+teams, suppliers, contracts, SLAs, utilities, costs, escalations, and
+reports. |
+| Facility Coordinator | Runs daily maintenance operations: requests,
+work orders, technician assignments, preventive maintenance,
+inspections, and operational SLA follow-up. |
+| Technician | Views assigned work and records progress, time,
+materials, and resolutions. |
+| Requester / Employee | Raises maintenance requests and follows their
+own requests. |
+| Vendor | Views its own provider profile and contract, completes its
+own quotations, and updates only externally assigned work orders. |
+**Assigning Manager and Coordinator roles:** Open the person's
+**User** record, add **Facility Manager** or
+**Facility Coordinator** in the Roles table, then save. These
+supervisory roles are intentionally assigned manually; ordinary new
+Employee accounts only receive Employee and Requester / Employee, plus
+Technician when applicable.
+A Facility Coordinator can work on maintenance operations but cannot
+configure sites, buildings, rooms, assets, vendors, quotations, service
+contracts, utility records, utility dashboards, or maintenance-cost
+reports. A Facility Manager has access to those management functions.
+If an action is not available, ask the Facility Manager to check your
+role and permissions.
 ### Setting up a vendor account
-
 1. Create a normal **System User** for the supplier contact.
 2. Add only the **Vendor** role on that User record.
-3. On the matching **Facility Service Provider**, set **Vendor User** to that User.
-
-The vendor can then view only that provider's contracts and quotations, and externally assigned work orders for that provider. They cannot create work orders, select quotations, reassign work, edit internal work details, or access utility and cost records.
-
+3. On the matching **Facility Service Provider**, set
+**Vendor User** to that User.
+The vendor can then view only that provider's contracts and quotations,
+and externally assigned work orders for that provider. They cannot
+create work orders, select quotations, reassign work, edit internal work
+details, or access utility and cost records.
 ## Employee login accounts
-
-When an active Employee is saved with a Company Email, CAFM automatically creates and links a login account. If no Company Email is available, it uses Personal Email instead.
-
-The employee receives Frappe's standard invitation email and chooses their own password. CAFM never assigns a shared default password.
-
-New employee accounts receive the **Employee** and **Requester / Employee** roles after the Employee record is saved. An employee marked as a Facility Technician also receives the **Technician** role. CAFM creates a unique username from the employee name when needed. If email is not configured on the site, a Facility Manager can use the standard password-reset action on the User record after email delivery is configured.
-
+When an active Employee is saved with a Company Email, CAFM
+automatically creates and links a login account. If no Company Email is
+available, it uses Personal Email instead.
+The employee receives Frappe's standard invitation email and chooses
+their own password. CAFM never assigns a shared default password.
+New employee accounts receive the **Employee** and
+**Requester / Employee** roles after the Employee record is
+saved. An employee marked as a Facility Technician also receives the
+**Technician** role. CAFM creates a unique username from the
+employee name when needed. If email is not configured on the site, a
+Facility Manager can use the standard password-reset action on the User
+record after email delivery is configured.
 ## Facility locations
-
 Create the facility structure before registering assets:
-
 1. Create a **Facility Location** for the site.
 2. Add its building, floor, and room details.
-3. Select this Facility Location on Assets, Maintenance Requests, Work Orders, preventive plans, and inspections.
-
-CAFM uses **Facility Location** as the business location. The standard ERPNext location is filled in automatically in the background.
-
+3. Select this Facility Location on Assets, Maintenance Requests, Work
+Orders, preventive plans, and inspections.
+CAFM uses **Facility Location** as the business location. The
+standard ERPNext location is filled in automatically in the background.
 ## Assets
-
-An Asset represents physical equipment such as an HVAC unit, pump, generator, electrical panel, or fire-safety device.
-
+An Asset represents physical equipment such as an HVAC unit, pump,
+generator, electrical panel, or fire-safety device.
 To create an Asset:
-
 1. Open **Asset** and select **Add Asset**.
-2. Enter the Asset Name, Company, Asset Category, purchase information, and purchase value.
-3. Set **Facility Location**, Criticality, and Operational Status.
+2. Enter the Asset Name, Company, Asset Category, purchase information,
+and purchase value.
+3. Set **Facility Location**, Criticality, and Operational
+Status.
 4. Save the Asset.
-
-The Asset page shows warranty details, open maintenance work, and completed maintenance history.
-
+The Asset page shows warranty details, open maintenance work, and
+completed maintenance history.
 ### Asset QR codes
-
-Open an Asset from `/cafm`, select **Actions - Show QR Code** to preview its code, then select **Download QR Code** to save the label for printing. The native Asset form also provides its QR actions.
-
-Place the printed QR label on the real equipment. A signed-in technician scans it to open the correct Asset record without searching manually. From the record, choose **Maintenance - Create Maintenance Request**.
-
-QR codes respect normal Asset permissions. They do not grant access to users who cannot use CAFM.
-
+Open an Asset from `/cafm`, select **Actions - Show QR Code**
+to preview its code, then select **Download QR Code** to save
+the label for printing. The native Asset form also provides its QR
+actions.
+Place the printed QR label on the real equipment. A signed-in technician
+scans it to open the correct Asset record without searching manually.
+From the record, choose **Maintenance - Create Maintenance
+Request**.
+QR codes respect normal Asset permissions. They do not grant access to
+users who cannot use CAFM.
 ### Asset maintenance history
-
-Open an Asset in `/cafm` and select **Actions - View Maintenance History**. The in-page history lists completed Work Orders with their type, category, priority, completion date, downtime, labour hours, and material cost. Select a Work Order number to open that Work Order in the same in-page record viewer.
-
-History is generated from closed Work Orders linked to the Asset. If the history is empty, confirm that the completed Work Order has the correct Asset and has been closed properly.
-
-> **Note:** A phone must be able to reach the CAFM site address. QR codes created on a localhost development site work only on that computer. Use an office-network or hosted URL before rolling out printed labels.
-
-## Employee facility portal
-
-Employees can submit and follow their own facility requests through the **Facility Portal** at /facility-portal.
-
-1. Open the portal while signed in with an Employee account.
-2. Select **Submit Request**.
-3. Enter the subject, facility location, request category, priority, and description.
+Open an Asset in `/cafm` and select **Actions - View Maintenance
+History**. The in-page history lists completed Work Orders with
+their type, category, priority, completion date, downtime, labour hours,
+and material cost. Select a Work Order number to open that Work Order in
+the same in-page record viewer.
+History is generated from closed Work Orders linked to the Asset. If the
+history is empty, confirm that the completed Work Order has the correct
+Asset and has been closed properly.
+> **Note:** A phone must be able to reach the CAFM site
+address. QR codes created on a localhost development site work only on
+that computer. Use an office-network or hosted URL before rolling out
+printed labels.
+## Employee client portal and Android app
+Employees can submit and follow their own facility requests through the
+Client Portal at /client-portal. The same portal is available
+through the CAFM Android app.
+1. Open the Client Portal while signed in with an Employee account.
+2. Select Create Request.
+3. Enter the request details required by the form, including the
+   relevant facility information, priority, and description.
 4. Submit the request.
-
-The **My Requests** list shows only requests submitted by that employee. A new request can be opened to review it, edited while it has not been converted into a work order, or withdrawn if it is no longer needed.
-
-Once a coordinator plans the request, its related work order and status remain visible to the employee. Resolved and closed requests remain in the portal history for 30 days. Rejected requests are hidden from the list.
-
+The request list shows the signed-in employee's requests. Use the
+available request views to move between the full list and active
+requests. Open a request to review its details. A request can be edited
+while it is still eligible for editing, or withdrawn when it is no
+longer needed.
+When technician or work information is available for a request, open the
+request to review those related details. Once a coordinator plans the
+request, its related work order and status remain visible to the
+employee. Resolved and closed requests remain in the portal history for
+30 days. Rejected requests are hidden from the list.
+### Using the Android app
+The Android app provides the Client Portal in a mobile app view while
+keeping the same CAFM account, requests, and permissions.
+Use the phone's Back button to return through the portal without
+losing the current navigation context. For example, Back can close a
+deeper request or technician view and return to the previous request
+view. When there is no earlier portal state to restore, Back leaves the
+app.
+The phone must be able to reach the CAFM server for the app to load and
+update live CAFM data. If the portal does not load, first confirm that
+the phone has access to the network where CAFM is available.
 ## Maintenance requests
-
 A Maintenance Request starts as an **Issue** in Frappe.
-
 1. Open **Issue** and select **Add Issue**.
 2. Enter a clear subject and description.
 3. Select the Company and Facility Location.
 4. Select the affected Asset when applicable.
 5. Select the request category and priority.
 6. Save and submit the request using the available workflow action.
-
-The selected Asset can automatically raise the priority when its CAFM Criticality or category requires it.
-
-A coordinator opens the request and selects **Create - Create Work Order** when work needs to be planned.
-
+The selected Asset can automatically raise the priority when its CAFM
+Criticality or category requires it.
+A coordinator opens the request and selects **Create - Create Work
+Order** when work needs to be planned.
 ## Work orders
-
-A **Facility Work Order** is the planned and tracked job created from a request.
-
+A **Facility Work Order** is the planned and tracked job created
+from a request.
 The coordinator should:
-
 1. Set the Asset and Facility Location.
 2. Enter the subject, priority, planned start, and planned end.
 3. Assign the appropriate technician.
 4. Start the workflow and monitor progress.
-
 The technician should:
-
 1. Open assigned work orders.
-2. Move work through Draft, Assigned, In Progress, or Pending as appropriate.
-3. Record labour hours, downtime, materials used, findings, and the resolution.
+2. Move work through Draft, Assigned, In Progress, or Pending as
+appropriate.
+3. Record labour hours, downtime, materials used, findings, and the
+resolution.
 4. Complete the work when the job is finished.
-
-The dashboard and reports use this information for workload, response, cost, downtime, and overdue measurements.
-
+The dashboard and reports use this information for workload, response,
+cost, downtime, and overdue measurements.
 ## Technician Mobile
-
-Technicians can use **Technician Mobile** at /app/technician-mobile for a focused view of their workload.
-
+Technicians can use **Technician Mobile** at
+/app/technician-mobile for a focused view of their workload.
 - The page lists only work orders assigned to the signed-in technician.
-- Use the left panel to switch between all active work, Assigned, In Progress, Pending, Overdue, and Completed history.
+- Use the left panel to switch between all active work, Assigned, In
+Progress, Pending, Overdue, and Completed history.
 - Completed work stays available for the last 30 days.
-- Use the Task range, Priority, and Location filters to narrow the list.
-- Select a work-order card, or a notification item, to open the corresponding work order.
-- The bell shows assigned-work notifications. Opening the panel marks new notifications as read. Use **x** to dismiss an individual item or **Clear all** to clear the displayed list.
-
-Update the work order itself to record progress and completion. Technician Mobile is a faster entry point; it does not replace the work-order record.
-
+- Use the Task range, Priority, and Location filters to narrow the
+list.
+- Select a work-order card, or a notification item, to open the
+corresponding work order.
+- The bell shows assigned-work notifications. Opening the panel marks
+new notifications as read. Use **x** to dismiss an individual
+item or **Clear all** to clear the displayed list.
+Update the work order itself to record progress and completion.
+Technician Mobile is a faster entry point; it does not replace the
+work-order record.
 ## Escalated and overdue work
-
 CAFM automatically escalates overdue work orders at these thresholds:
-
 - **Critical work order escalation**: 1 hour overdue.
 - **Coordinator overdue escalation**: 4 hours overdue.
 - **Manager overdue escalation**: 24 hours overdue.
-
-The Facility Management Dashboard includes number cards for each level. A work order moves out of the earlier count when it reaches the next level, so each card represents its own overdue range.
-
-Keep planned end dates accurate. This is what makes escalation reporting useful.
-
+The Facility Management Dashboard includes number cards for each level.
+A work order moves out of the earlier count when it reaches the next
+level, so each card represents its own overdue range.
+Keep planned end dates accurate. This is what makes escalation reporting
+useful.
 ## Preventive maintenance
-
-Use a **Preventive Maintenance Plan** to schedule recurring work for an Asset.
-
+Use a **Preventive Maintenance Plan** to schedule recurring work
+for an Asset.
 1. Create a plan.
-2. Select the Company, Facility Location, Asset, maintenance task, frequency, and planned schedule.
+2. Select the Company, Facility Location, Asset, maintenance task,
+frequency, and planned schedule.
 3. Activate the plan.
-4. CAFM creates the related preventive work orders according to the schedule.
+4. CAFM creates the related preventive work orders according to the
+schedule.
 5. Complete each generated work order normally.
-
-Use the **Preventive Maintenance Calendar** report and dashboard heatmap to review upcoming and active preventive work. Filter by date range, company, location, asset, technician, and work-order status.
-
-Cancelled, closed, and resolved work does not count as active preventive work on the calendar.
-
+Use the **Preventive Maintenance Calendar** report and dashboard
+heatmap to review upcoming and active preventive work. Filter by date
+range, company, location, asset, technician, and work-order status.
+Cancelled, closed, and resolved work does not count as active preventive
+work on the calendar.
 ## Inspections
-
-Use **Facility Inspection Templates** to define reusable checklists. A template can be specific to a category or marked **General** for broad use.
-
+Use **Facility Inspection Templates** to define reusable
+checklists. A template can be specific to a category or marked
+**General** for broad use.
 1. Open **Facility Inspection** and create a new record.
 2. Choose Manual or a scheduled source.
-3. Select the Facility Location, Asset, and applicable Inspection Template.
+3. Select the Facility Location, Asset, and applicable Inspection
+Template.
 4. Select the Inspector and planned date.
 5. Complete the checklist and record findings.
-6. Follow the workflow to complete, approve, reopen, reject, or cancel it as appropriate.
-
-Inspection templates are filtered to match the selected asset/category. General templates remain available for broad inspections.
-
+6. Follow the workflow to complete, approve, reopen, reject, or cancel
+it as appropriate.
+Inspection templates are filtered to match the selected asset/category.
+General templates remain available for broad inspections.
 ## Maintenance teams and technicians
-
-Create **Asset Maintenance Teams** for groups such as HVAC, Electrical, Plumbing, or Emergency Response.
-
-Add team members and select their maintenance role. A technician can belong to more than one team, such as HVAC and Emergency Response, so assign them based on their skills and availability.
-
-Employee records can hold the technician flag, specialization, availability, maximum active work orders, and service categories.
-
+Create **Asset Maintenance Teams** for groups such as HVAC,
+Electrical, Plumbing, or Emergency Response.
+Add team members and select their maintenance role. A technician can
+belong to more than one team, such as HVAC and Emergency Response, so
+assign them based on their skills and availability.
+Employee records can hold the technician flag, specialization,
+availability, maximum active work orders, and service categories.
 ## Warranty tracking
-
 Complete the **Warranty** section on each Asset:
-
 - Warranty Provider
 - Warranty Start Date
 - Warranty Expiry Date
 - Warranty Reference
 - Warranty Coverage
 - Warranty Document
-
 CAFM calculates the status automatically:
-
 | Status | Meaning |
 | --- | --- |
 | Not Covered | No valid warranty expiry date is recorded. |
@@ -249,49 +299,68 @@ CAFM calculates the status automatically:
 | Active | The Asset is currently covered. |
 | Expiring Soon | Warranty is nearing its expiry date. |
 | Expired | Warranty coverage has ended. |
-
-Mark a work order as a warranty claim only when the Asset is within its valid warranty period.
-
+Mark a work order as a warranty claim only when the Asset is within its
+valid warranty period.
 ## SLA tracking
-
-Each Work Order automatically receives the best matching active **Facility SLA Policy** based on its priority and, when configured, its company or category. The Work Order shows the response due time, resolution due time, achieved times, and current SLA status.
-
-Response is recorded when the Work Order is assigned. Resolution is recorded when it is resolved or closed. CAFM measures the default policies using 24/7 elapsed hours and does not pause the timer while a Work Order is Pending. Facility Managers and Coordinators receive an alert when a response or resolution target is breached.
-
+Each Work Order automatically receives the best matching active
+**Facility SLA Policy** based on its priority and, when
+configured, its company or category. The Work Order shows the response
+due time, resolution due time, achieved times, and current SLA status.
+Response is recorded when the Work Order is assigned. Resolution is
+recorded when it is resolved or closed. CAFM measures the default
+policies using 24/7 elapsed hours and does not pause the timer while a
+Work Order is Pending. Facility Managers and Coordinators receive an
+alert when a response or resolution target is breached.
 ## Vendor quotations and service contracts
-
-Use **Facility Service Provider** for approved external vendors. Each provider is linked to its ERPNext Supplier, contact details, service categories, availability, and vendor user.
-
-From a saved Facility Work Order, use **Vendor - Request Vendor Quotation** to create a quotation record. Add one quotation for each vendor, including the scope, expected completion time, valid-until date, warranty, price, tax, and attached quotation document.
-
-When a quotation has been received, open it and select **Actions - Select Quotation**. CAFM marks that quotation as selected, rejects the other open quotations for the same job, assigns the external vendor to the Work Order, and records the agreed cost.
-
-Use **Facility Service Contract** for longer agreements. Set the provider, dates, value, document, and coverage scope. A contract may cover all assets, one facility location, one asset, or one service category. The Work Order's **Vendor - View Matching Contracts** action identifies active contracts that apply to that job.
-
+Use **Facility Service Provider** for approved external vendors.
+Each provider is linked to its ERPNext Supplier, contact details,
+service categories, availability, and vendor user.
+From a saved Facility Work Order, use **Vendor - Request Vendor
+Quotation** to create a quotation record. Add one quotation for each
+vendor, including the scope, expected completion time, valid-until date,
+warranty, price, tax, and attached quotation document.
+When a quotation has been received, open it and select **Actions -
+Select Quotation**. CAFM marks that quotation as selected, rejects
+the other open quotations for the same job, assigns the external vendor
+to the Work Order, and records the agreed cost.
+Use **Facility Service Contract** for longer agreements. Set the
+provider, dates, value, document, and coverage scope. A contract may
+cover all assets, one facility location, one asset, or one service
+category. The Work Order's **Vendor - View Matching Contracts**
+action identifies active contracts that apply to that job.
 ## Utility monitoring
-
-Use utility monitoring to record meter usage, cost, demand, and environmental indicators.
-
-1. Create a **Utility Meter** for each electricity, water, natural-gas, fuel, or other meter.
-2. Set its company, site or building, supplier, unit, and cost per unit.
-3. Create the first **Utility Reading** and mark it as **Opening Reading**. This establishes the baseline and has no calculated consumption.
-4. Add later readings for the same meter. CAFM uses the previous reading to calculate consumption and estimated cost.
-5. Review the **Utility Consumption Report** and **Utility Consumption Dashboard**.
-
-The dashboard includes usage and cost trends, peak-demand indicators, carbon estimates, forecasts, anomalies, weather-normalized comparisons, and allocation views when relevant records exist. Use these as management indicators and investigate unusual readings before acting on them.
-
-For reliable results, record readings at consistent intervals and do not change the meter unit after readings have been entered.
-
+Use utility monitoring to record meter usage, cost, demand, and
+environmental indicators.
+1. Create a **Utility Meter** for each electricity, water,
+natural-gas, fuel, or other meter.
+2. Set its company, site or building, supplier, unit, and cost per
+unit.
+3. Create the first **Utility Reading** and mark it as
+**Opening Reading**. This establishes the baseline and has no
+calculated consumption.
+4. Add later readings for the same meter. CAFM uses the previous
+reading to calculate consumption and estimated cost.
+5. Review the **Utility Consumption Report** and **Utility
+Consumption Dashboard**.
+The dashboard includes usage and cost trends, peak-demand indicators,
+carbon estimates, forecasts, anomalies, weather-normalized comparisons,
+and allocation views when relevant records exist. Use these as
+management indicators and investigate unusual readings before acting on
+them.
+For reliable results, record readings at consistent intervals and do not
+change the meter unit after readings have been entered.
 ## Dashboard and reports
-
-Select **Analytics** in `/cafm` to use the dashboard selector and view the dashboards without leaving the CAFM Operations interface. Use the dashboards for a quick operational view:
-
-- **Facility Management Dashboard:** requests, work orders, priorities, costs, overdue work, preventive maintenance, and escalations.
-- **SLA Performance Dashboard:** response and resolution performance, breached work, and SLA trends.
-- **Utility Consumption Dashboard:** meter reporting, consumption, cost, demand, forecast, carbon, and anomaly indicators.
-
+Select **Analytics** in `/cafm` to use the dashboard selector
+and view the dashboards without leaving the CAFM Operations interface.
+Use the dashboards for a quick operational view:
+- **Facility Management Dashboard:** requests, work orders,
+priorities, costs, overdue work, preventive maintenance, and
+escalations.
+- **SLA Performance Dashboard:** response and resolution
+performance, breached work, and SLA trends.
+- **Utility Consumption Dashboard:** meter reporting,
+consumption, cost, demand, forecast, carbon, and anomaly indicators.
 Use reports for detailed analysis:
-
 - Asset Maintenance History
 - Maintenance Cost Report
 - Maintenance Request Report
@@ -300,26 +369,27 @@ Use reports for detailed analysis:
 - Work Order Report
 - Preventive Maintenance Calendar
 - Utility Consumption Report
-
-Set report filters first, then refresh the report before exporting or sharing results.
-
+Set report filters first, then refresh the report before exporting or
+sharing results.
 ## Good operating habits
-
-- Use clear request subjects: describe the asset, problem, and location.
+- Use clear request subjects: describe the asset, problem, and
+location.
 - Always select the correct Facility Location and Asset.
 - Set realistic planned start and end times.
 - Update work-order status as work changes.
-- Record material and labour accurately so costs and dashboards stay reliable.
-- Record utility readings consistently and mark only the first reading as Opening Reading.
+- Record material and labour accurately so costs and dashboards stay
+reliable.
+- Record utility readings consistently and mark only the first reading
+as Opening Reading.
 - Close or resolve completed work promptly.
 - Review overdue cards and preventive maintenance regularly.
-- Print QR labels only after CAFM is available from the devices that will scan them.
-
+- Print QR labels only after CAFM is available from the devices that
+will scan them.
 ## Getting help
-
-If a record is missing, an action is unavailable, or an assignment does not appear:
-
+If a record is missing, an action is unavailable, or an assignment does
+not appear:
 1. Refresh the page once.
-2. Check that the correct Company, Facility Location, and Asset are selected.
+2. Check that the correct Company, Facility Location, and Asset are
+selected.
 3. Check your role and permissions with the Facility Manager.
 4. Include the record number and a screenshot when reporting a problem.
